@@ -26,7 +26,7 @@ async function handler(request) {
 
     if (unitErr || !unidad) {
       return NextResponse.json(
-        { error: 'Unidad no encontrada', code: 'NOT_FOUND' },
+        { error: 'Tema no encontrado', code: 'NOT_FOUND' },
         { status: 404 }
       );
     }

@@ -21,13 +21,20 @@ function ContenidoRepaso() {
   const [terminado, setTerminado] = useState(false);
   const [nombreMateria, setNombreMateria] = useState('');
 
+  // Carga cognitiva recomendada por alumno (guía, no límite).
+  const [recomendado,       setRecomendado]       = useState(0);
+  const [mostrarCheckpoint, setMostrarCheckpoint] = useState(false);
+  const [checkpointVisto,   setCheckpointVisto]   = useState(false);
+
   const cargar = useCallback(async () => {
     if (!materiaId) { router.replace('/student'); return; }
     try {
       const { data } = await api.get(`/fsrs/pending?subjectId=${materiaId}`);
-      setCola(data);
-      if (data.length > 0) {
-        setNombreMateria(data[0]?.item?.unidad?.materia?.nombre ?? '');
+      const items = data.items ?? [];
+      setCola(items);
+      setRecomendado(data.recommended ?? 0);
+      if (items.length > 0) {
+        setNombreMateria(items[0]?.item?.unidad?.materia?.nombre ?? '');
       }
     } catch { router.replace('/student'); }
     finally { setCargando(false); }
@@ -52,11 +59,23 @@ function ContenidoRepaso() {
   }
 
   function handleSiguiente() {
-    if (actual + 1 >= cola.length) {
+    const siguiente = actual + 1;
+    if (siguiente >= cola.length) {
       finalizar();
-    } else {
-      setActual((a) => a + 1);
+      return;
     }
+    // Al alcanzar el repaso recomendado, ofrecer terminar o seguir (sin obligar).
+    if (!checkpointVisto && recomendado > 0 && siguiente === recomendado && cola.length > recomendado) {
+      setMostrarCheckpoint(true);
+      return;
+    }
+    setActual(siguiente);
+  }
+
+  function continuarTrasCheckpoint() {
+    setCheckpointVisto(true);
+    setMostrarCheckpoint(false);
+    setActual((a) => a + 1);
   }
 
   async function finalizar() {
@@ -98,6 +117,36 @@ function ContenidoRepaso() {
     );
   }
 
+  // Checkpoint de carga cognitiva: alcanzó el repaso recomendado para hoy.
+  if (mostrarCheckpoint) {
+    const restantes = cola.length - recomendado;
+    return (
+      <div className="pantalla-completada">
+        <div className="tarjeta-completada">
+          <div className="icono-completado">
+            <span className="icono-completado-signo">✓</span>
+          </div>
+          <h2 className="titulo-completado">¡Buen trabajo!</h2>
+          <p className="subtitulo-completado">
+            Completaste tu repaso recomendado de hoy ({recomendado}). Según tu
+            desempeño, este es el número sugerido para no saturarte. Puedes
+            terminar aquí o seguir con los {restantes} restantes.
+          </p>
+          <button className="btn-primario btn-ancho" onClick={continuarTrasCheckpoint}>
+            Seguir repasando
+          </button>
+          <button
+            className="btn-secundario btn-ancho"
+            style={{ marginTop: '0.75rem' }}
+            onClick={finalizar}
+          >
+            Terminar por hoy
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const fila        = cola[actual];
   const item        = fila.item;
   const pctProgreso = Math.round((actual / cola.length) * 100);
@@ -119,6 +168,12 @@ function ContenidoRepaso() {
         <div className="barra-sesion-fondo">
           <div className="barra-sesion-relleno" style={{ width: `${pctProgreso}%` }} />
         </div>
+
+        {recomendado > 0 && cola.length > recomendado && (
+          <p className="nota-recomendado">
+            Repaso recomendado hoy: <strong>{recomendado}</strong> de {cola.length}
+          </p>
+        )}
 
         <div className="contenido-repaso">
           <Flashcard

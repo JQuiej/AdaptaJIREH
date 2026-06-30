@@ -63,7 +63,7 @@ export default function PanelDocente() {
                 <div key={i} className="tarjeta-alerta">
                   <p className="alerta-nombre">{a.nombre_usuario}</p>
                   <p className="alerta-detalle">
-                    Unidad: {a.nombre_unidad} — {a.olvidos_consecutivos} olvidos consecutivos en los últimos 14 días
+                    Tema: {a.nombre_unidad} — {a.olvidos_consecutivos} olvidos consecutivos en los últimos 14 días
                   </p>
                 </div>
               ))}

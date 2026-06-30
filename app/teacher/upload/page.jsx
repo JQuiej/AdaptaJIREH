@@ -22,7 +22,7 @@ function ContenidoSubida() {
   const [materiaId, setMateriaId] = useState(params.get('subjectId') ?? '');
   const [unidadId,  setUnidadId]  = useState('');
   const [bloom,     setBloom]     = useState('2');
-  const [cantidad,  setCantidad]  = useState('15');
+  const [cantidad,  setCantidad]  = useState('5');
   const [archivo,   setArchivo]   = useState(null);
 
   // ── Estado de la previsualización ──────────────────────
@@ -307,7 +307,7 @@ function ContenidoSubida() {
       <main style={{ maxWidth: '36rem', margin: '0 auto', padding: '2rem 1rem' }}>
         <div className="tarjeta">
           <p style={{ fontSize: '0.875rem', color: 'var(--gris-500)', marginBottom: '1.25rem' }}>
-            Sube un PDF con el contenido de la unidad. El sistema extraerá el texto y
+            Sube un PDF con el contenido del tema. El sistema extraerá el texto y
             generará preguntas que podrás <strong>revisar uno por uno</strong> antes de guardarlas.
           </p>
 
@@ -328,7 +328,7 @@ function ContenidoSubida() {
             </div>
 
             <div>
-              <label className="etiqueta">Unidad curricular</label>
+              <label className="etiqueta">Tema</label>
               <select
                 className="campo"
                 value={unidadId}
@@ -337,7 +337,7 @@ function ContenidoSubida() {
                 required
               >
                 <option value="">
-                  {!materiaId ? 'Selecciona una materia primero' : 'Selecciona una unidad...'}
+                  {!materiaId ? 'Selecciona una materia primero' : 'Selecciona un tema...'}
                 </option>
                 {unidades.map((u) => (
                   <option key={u.id} value={u.id}>{u.nombre}</option>

@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { calculateRetrieval } from '@/lib/fsrs5';
+import { itemsAcertados, filtrarPorBloom, componerSesion, cargaCognitivaRecomendada } from '@/lib/progression';
 
 // R(t) actual de un ítem: decae con los días transcurridos desde el último repaso.
 function retencionActual(fila) {
@@ -33,18 +34,27 @@ async function handler(request, context, user) {
         const { data: fsrsRows } = await supabase
           .from('item_fsrs')
           .select(`
-            proxima_revision, S:s, ultima_revision,
+            proxima_revision, D:d, S:s, R:r, ultima_revision,
             item:item!id_item(
-              unidad:unidad_curricular!id_unidad(id_materia)
+              id_item, nivel_bloom, activo,
+              unidad:unidad_curricular!id_unidad(id_unidad, id_materia)
             )
           `)
           .eq('id_estudiante', user.id)
           .eq('item.unidad.id_materia', m.id_materia);
 
         const filas   = (fsrsRows ?? []).filter(
-          (r) => r.item?.unidad?.id_materia === m.id_materia
+          (r) => r.item?.activo && r.item?.unidad?.id_materia === m.id_materia
         );
-        const pending = filas.filter((r) => r.proxima_revision <= today).length;
+
+        // El conteo del panel refleja la sesión real (misma compuerta de Bloom).
+        // Los repasos vencidos NO se topan; el número recomendado (carga cognitiva
+        // por alumno) solo orienta cuántos repasar.
+        const acertados  = await itemsAcertados(user.id, filas.map((r) => r.item.id_item));
+        const permitidos = filtrarPorBloom(filas, acertados);
+        const sesion     = componerSesion(permitidos, today);
+        const pending    = sesion.length;
+        const recommended = Math.min(cargaCognitivaRecomendada(filas), pending);
         const avgR    = filas.length
           ? Math.round(filas.reduce((s, r) => s + retencionActual(r), 0) / filas.length * 100)
           : 100;
@@ -53,6 +63,7 @@ async function handler(request, context, user) {
           id:            m.id_materia,
           nombre:        m.nombre,
           pending_count: pending,
+          recommended,
           avg_retention: avgR,
         };
       })

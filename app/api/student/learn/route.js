@@ -25,26 +25,33 @@ async function handler(request, context, user) {
       .from('teoria')
       .select(`
         id_teoria, resumen, secciones, creado_en,
-        unidad:unidad_curricular!id_unidad(id_unidad, nombre, id_materia)
-      `)
-      .order('creado_en', { ascending: false });
+        unidad:unidad_curricular!id_unidad(id_unidad, nombre, id_materia, nivel_bloom)
+      `);
     if (teoErr) throw teoErr;
 
     const relevantes = (teorias ?? []).filter(
       (t) => t.unidad && idsMaterias.includes(t.unidad.id_materia)
     );
 
-    // Agrupar por materia
+    // Agrupar por materia y ordenar los temas en orden lógico de aprendizaje:
+    // de lo más básico a lo más complejo (nivel de Bloom ascendente) y, dentro
+    // del mismo nivel, por antigüedad (lo subido primero va primero).
     const resultado = materias.map((m) => ({
       id:     m.id_materia,
       nombre: m.nombre,
       temas:  relevantes
         .filter((t) => t.unidad.id_materia === m.id_materia)
+        .sort((a, b) => {
+          const db = (a.unidad.nivel_bloom ?? 99) - (b.unidad.nivel_bloom ?? 99);
+          if (db !== 0) return db;
+          return (a.creado_en ?? '').localeCompare(b.creado_en ?? '');
+        })
         .map((t) => ({
-          id:        t.id_teoria,
-          unidad:    t.unidad.nombre,
-          resumen:   t.resumen,
-          secciones: t.secciones ?? [],
+          id:          t.id_teoria,
+          unidad:      t.unidad.nombre,
+          nivel_bloom: t.unidad.nivel_bloom,
+          resumen:     t.resumen,
+          secciones:   t.secciones ?? [],
         })),
     }));
 

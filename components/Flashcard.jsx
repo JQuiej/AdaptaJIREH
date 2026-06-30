@@ -8,6 +8,11 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   const [resultado, setResultado] = useState(null);
   const [inicio]                  = useState(() => Date.now());
 
+  // Traducción al español pre-generada (solo se muestra si el alumno la pide).
+  // Es null cuando la pregunta ya está en español → no se ofrece el botón.
+  const [verTrad, setVerTrad] = useState(false);
+  const traduccion = item.pregunta_es;
+
   async function handleEnviar(e) {
     e.preventDefault();
     if (!respuesta.trim()) return;
@@ -43,6 +48,20 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
       <div className="flashcard-cabecera">
         <BloomBadge nivel={item.nivel_bloom} />
         <p className="flashcard-pregunta">{item.pregunta}</p>
+
+        {traduccion && (
+          <>
+            <button
+              type="button"
+              className="btn-traducir"
+              onClick={() => setVerTrad((v) => !v)}
+            >
+              {verTrad ? 'Ocultar traducción' : 'Traducir al español'}
+            </button>
+
+            {verTrad && <p className="flashcard-traduccion">{traduccion}</p>}
+          </>
+        )}
       </div>
 
       {!resultado ? (

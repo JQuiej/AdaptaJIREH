@@ -31,6 +31,10 @@ cp .env.example .env.local
 | `GEMINI_API_KEY` | Google AI Studio → Get API Key |
 | `GEMINI_MODEL` | `gemini-2.0-flash` |
 | *(embeddings)* | Se usa `text-embedding-004` de Gemini — misma API key, sin costo extra |
+| `VAPID_PUBLIC_KEY` | Notificaciones push. Genera con: `node -e "console.log(require('web-push').generateVAPIDKeys())"` |
+| `VAPID_PRIVATE_KEY` | (del mismo comando anterior) |
+| `VAPID_SUBJECT` | `mailto:tu-correo@dominio.com` |
+| `CRON_SECRET` | Secreto para proteger el cron de recordatorios. Genera: `openssl rand -base64 32`. En Vercel se envía automáticamente al cron. |
 
 ---
 
@@ -40,6 +44,9 @@ En Supabase Dashboard → SQL Editor, ejecuta en orden:
 
 1. `supabase/migrations/001_schema.sql`
 2. `supabase/migrations/002_functions.sql`
+3. `supabase/migrations/003_teoria.sql`
+4. `supabase/migrations/004_traduccion.sql`
+5. `supabase/migrations/005_racha_notificaciones.sql`
 
 ---
 

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSessionStore } from '@/store/sessionStore';
 import OfflineBanner from '@/components/OfflineBanner';
 import ForecastCalendar from '@/components/ForecastCalendar';
+import PanelRacha from '@/components/PanelRacha';
 import Brand from '@/components/Brand';
 import api from '@/services/api';
 
@@ -102,6 +103,9 @@ export default function PanelEstudiante() {
             </div>
           </section>
 
+          {/* Racha de estudio y recordatorios */}
+          <PanelRacha />
+
           {/* Pronóstico de repasos */}
           {!cargando && <ForecastCalendar dias={pronostico} />}
 
@@ -130,6 +134,11 @@ export default function PanelEstudiante() {
                         ? `${m.pending_count} ítem${m.pending_count !== 1 ? 's' : ''} para hoy`
                         : 'Sin pendientes por hoy'}
                     </p>
+                    {m.pending_count > 0 && m.recommended > 0 && m.pending_count > m.recommended && (
+                      <p className="texto-recomendado">
+                        Te recomendamos repasar <strong>{m.recommended}</strong> hoy
+                      </p>
+                    )}
                     <button
                       className="btn-primario btn-ancho"
                       style={{ marginTop: 'auto' }}

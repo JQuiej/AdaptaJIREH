@@ -1,0 +1,12 @@
+# Normaliza finales de línea: el repo guarda LF, cada quien usa lo suyo localmente
+* text=auto eol=lf
+
+# Archivos binarios (no tocar finales de línea)
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary

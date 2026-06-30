@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS respuesta (
   IRE_dias   SMALLINT,      -- Intervalo de Repetición Espaciada (días)
   D_post     NUMERIC(5,4),  -- Dificultad tras actualizar FSRS
   S_post     NUMERIC(3,2),  -- Estabilidad tras actualizar FSRS
-  R_post     NUMERIC(5,4),  -- Retención tras actualizar FSRS
+  R_post     NUMERIC(5,4),  -- Retención decaída al momento del repaso (R + TO ≈ 1)
   ELC        NUMERIC(5,4),  -- Estado Latente de Conocimiento
   CE         VARCHAR(6),    -- Carga de Estudio: 'low'|'medium'|'high'
   DD         SMALLINT,      -- Dificultad Deseable (nivel Bloom)

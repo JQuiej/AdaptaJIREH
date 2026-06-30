@@ -279,6 +279,55 @@ input, select, textarea { font-family: inherit; }
 .bloom-3 { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
 .bloom-4 { background: #fdf4ff; color: #86198f; border-color: #f0abfc; }
 
+/* ── Racha de estudio ────────────────────────────────────────── */
+.tarjeta-racha { display: flex; flex-direction: column; gap: 1rem; }
+.racha-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.racha-fuego { display: flex; align-items: center; gap: 0.625rem; }
+.racha-icono { font-size: 2rem; filter: grayscale(1); opacity: 0.5; }
+.racha-icono.racha-activa { filter: none; opacity: 1; }
+.racha-numero { font-size: 1.75rem; font-weight: 800; color: var(--gris-900); line-height: 1; }
+.racha-etiqueta { font-size: 0.8125rem; color: var(--gris-500); }
+.racha-mejor {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--acento-texto);
+  background: var(--acento-bg);
+  border: 1px solid var(--acento-borde);
+  border-radius: var(--radio-full);
+  padding: 0.2rem 0.625rem;
+}
+.racha-progreso { display: flex; flex-direction: column; gap: 0.5rem; }
+.racha-progreso-texto { font-size: 0.875rem; color: var(--gris-700); }
+.racha-recordatorios {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid var(--gris-100);
+  padding-top: 1rem;
+}
+.racha-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--gris-700); cursor: pointer; }
+.racha-toggle input { width: 1rem; height: 1rem; accent-color: var(--primario); }
+.racha-hora { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--gris-600); }
+.campo-hora { width: auto; padding: 0.375rem 0.5rem; }
+.racha-aviso { font-size: 0.8125rem; color: var(--gris-500); }
+
+/* ── Recomendación de carga cognitiva por alumno ─────────────── */
+.texto-recomendado {
+  font-size: 0.8125rem;
+  color: var(--acento-texto);
+  margin-top: 0.25rem;
+}
+.nota-recomendado {
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--gris-500);
+  padding: 0.5rem 1rem 0;
+}
+
 /* ── Barra de progreso de sesión ─────────────────────────────── */
 .barra-sesion-fondo {
   width: 100%;
@@ -352,6 +401,29 @@ input, select, textarea { font-family: inherit; }
   color: var(--gris-900);
   line-height: 1.6;
   width: 100%;
+}
+.btn-traducir {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primario);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.btn-traducir:disabled { color: var(--gris-400); cursor: default; text-decoration: none; }
+.flashcard-traduccion {
+  width: 100%;
+  font-size: 0.9375rem;
+  color: var(--gris-700);
+  line-height: 1.6;
+  background: var(--acento-bg);
+  border: 1px solid var(--acento-borde);
+  border-radius: var(--radio-md);
+  padding: 0.75rem 0.875rem;
 }
 .formulario-respuesta { display: flex; flex-direction: column; gap: 0.75rem; }
 
@@ -914,6 +986,189 @@ input, select, textarea { font-family: inherit; }
 .tema-seccion { display: flex; flex-direction: column; gap: 0.375rem; }
 .tema-seccion-titulo { font-size: 0.875rem; font-weight: 700; color: var(--primario-texto); }
 .tema-seccion-texto { font-size: 0.875rem; color: var(--gris-700); line-height: 1.7; text-align: justify; }
+
+/* ── Aprender: lista de temas (explorar) ─────────────────────── */
+.aprender-lista-temas { display: flex; flex-direction: column; gap: 0.75rem; }
+.tarjeta-tema-estudio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  border: 1px solid var(--gris-200);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.tarjeta-tema-estudio:hover {
+  border-color: var(--primario-borde);
+  box-shadow: var(--sombra-sm);
+  transform: translateY(-1px);
+}
+.tema-orden {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radio-full);
+  background: var(--primario-bg);
+  color: var(--primario-texto);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.tema-estudio-cuerpo { flex: 1; display: flex; flex-direction: column; gap: 0.375rem; }
+.tema-estudio-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.tema-estudio-meta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primario);
+  margin-top: 0.125rem;
+}
+
+/* ── Aprender: modo estudio (flashcards) ─────────────────────── */
+.contenido-aprender-estudio {
+  max-width: 32rem;
+  margin: 0 auto;
+  width: 100%;
+  padding: 1.5rem 1rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.carta-estudio {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  perspective: 1200px;
+  height: 22rem;
+}
+.carta-estudio-interior {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.carta-estudio.volteada .carta-estudio-interior { transform: rotateY(180deg); }
+.carta-cara {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radio-lg);
+  border: 1px solid var(--gris-200);
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: var(--sombra-sm);
+  overflow: hidden;
+}
+.carta-frente {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.875rem;
+  background: linear-gradient(160deg, #fff 0%, var(--primario-bg) 140%);
+}
+.carta-emblema {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radio-full);
+  background: var(--primario-bg);
+  color: var(--primario);
+  border: 1px solid var(--primario-borde);
+  margin-bottom: 0.25rem;
+}
+.carta-dorso {
+  transform: rotateY(180deg);
+  background: var(--primario-bg);
+  border-color: var(--primario-borde);
+  gap: 0.75rem;
+}
+.carta-tipo {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primario);
+}
+.carta-titulo-estudio {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gris-800);
+  line-height: 1.3;
+  position: relative;
+  padding-bottom: 0.875rem;
+}
+.carta-titulo-estudio::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 2.5rem;
+  height: 3px;
+  border-radius: var(--radio-full);
+  background: var(--acento);
+}
+.carta-pista {
+  margin-top: auto;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primario);
+  opacity: 0.85;
+}
+.carta-dorso-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primario-texto);
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--primario-borde);
+  flex-shrink: 0;
+}
+.carta-texto-estudio {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-right: 0.25rem;
+}
+.rich-parrafo {
+  font-size: 0.9375rem;
+  color: var(--gris-700);
+  line-height: 1.7;
+  text-align: left;
+}
+.rich-parrafo strong, .rich-lista strong { color: var(--primario-texto); font-weight: 700; }
+.rich-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 1.25rem;
+  margin: 0;
+}
+.rich-lista li {
+  font-size: 0.9375rem;
+  color: var(--gris-700);
+  line-height: 1.6;
+  text-align: left;
+}
+.rich-lista li::marker { color: var(--primario); font-weight: 700; }
+.aprender-nav { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.aprender-nav .btn-primario, .aprender-nav .btn-secundario { flex: 1; }
 
 /* ── Oculto en móvil ─────────────────────────────────────────── */
 .oculto-movil { display: none; }
