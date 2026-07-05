@@ -5,10 +5,26 @@ import { useAuthGuard } from '@/hooks/useAuthGuard';
 import api from '@/services/api';
 
 const NIVELES_BLOOM = [
-  { valor: '1', etiqueta: 'Nivel 1 — Recordar' },
-  { valor: '2', etiqueta: 'Nivel 2 — Comprender' },
-  { valor: '3', etiqueta: 'Nivel 3 — Aplicar' },
-  { valor: '4', etiqueta: 'Nivel 4 — Analizar' },
+  {
+    valor: '1',
+    etiqueta: 'Nivel 1 — Recordar',
+    descripcion: 'Recordar hechos y conceptos básicos. Preguntas de memoria: definir, listar, nombrar o identificar información tal como se enseñó.',
+  },
+  {
+    valor: '2',
+    etiqueta: 'Nivel 2 — Comprender',
+    descripcion: 'Explicar ideas con palabras propias. El alumno interpreta, resume o da ejemplos para demostrar que entendió el concepto.',
+  },
+  {
+    valor: '3',
+    etiqueta: 'Nivel 3 — Aplicar',
+    descripcion: 'Usar lo aprendido en situaciones nuevas. Resolver problemas o aplicar reglas y procedimientos a casos concretos.',
+  },
+  {
+    valor: '4',
+    etiqueta: 'Nivel 4 — Analizar',
+    descripcion: 'Descomponer y relacionar información. Comparar, distinguir causas y efectos o examinar cómo se conectan las partes de un tema.',
+  },
 ];
 
 function ContenidoSubida() {
@@ -21,7 +37,7 @@ function ContenidoSubida() {
   const [unidades,  setUnidades]  = useState([]);
   const [materiaId, setMateriaId] = useState(params.get('subjectId') ?? '');
   const [unidadId,  setUnidadId]  = useState('');
-  const [bloom,     setBloom]     = useState('2');
+  const [bloom,     setBloom]     = useState('1');
   const [cantidad,  setCantidad]  = useState('5');
   const [archivo,   setArchivo]   = useState(null);
 
@@ -39,6 +55,12 @@ function ContenidoSubida() {
   const [generandoMas, setGenerandoMas] = useState(false);
   const [guardando,   setGuardando]   = useState(false);
 
+  // ── Estado para crear un tema nuevo ────────────────────
+  const [modoNuevoTema,   setModoNuevoTema]   = useState(false);
+  const [nuevoTemaNombre, setNuevoTemaNombre] = useState('');
+  const [creandoTema,     setCreandoTema]     = useState(false);
+  const [borrandoTema,    setBorrandoTema]    = useState(false);
+
   const enPreview = items.length > 0;
 
   useEffect(() => {
@@ -55,6 +77,56 @@ function ContenidoSubida() {
   }, []);
 
   useEffect(() => { cargarUnidades(materiaId); }, [materiaId, cargarUnidades]);
+
+  // ── Crear un tema nuevo en la materia seleccionada ─────
+  async function crearTema() {
+    const nombre = nuevoTemaNombre.trim();
+    if (!materiaId || !nombre) return;
+    setCreandoTema(true);
+    setError('');
+    try {
+      const { data } = await api.post('/material/units', {
+        subjectId:  materiaId,
+        nombre,
+        bloomLevel: bloom,
+      });
+      // Agregar el tema nuevo a la lista y seleccionarlo automáticamente.
+      setUnidades((prev) =>
+        [...prev, data].sort((a, b) => a.nombre.localeCompare(b.nombre))
+      );
+      setUnidadId(data.id);
+      setNuevoTemaNombre('');
+      setModoNuevoTema(false);
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'No se pudo crear el tema.');
+    } finally {
+      setCreandoTema(false);
+    }
+  }
+
+  // ── Eliminar el tema seleccionado ──────────────────────
+  async function eliminarTema() {
+    const tema = unidades.find((u) => u.id === unidadId);
+    if (!tema) return;
+    if (!confirm(
+      `¿Eliminar el tema «${tema.nombre}»?\n\nSe borrarán también todos sus ítems, ` +
+      `apuntes de teoría y el avance de los estudiantes en ese tema. Esta acción no se puede deshacer.`
+    )) return;
+
+    setBorrandoTema(true);
+    setError('');
+    setMensaje('');
+    try {
+      await api.delete(`/material/units?unitId=${unidadId}`);
+      setUnidades((prev) => prev.filter((u) => u.id !== unidadId));
+      setUnidadId('');
+      setMensaje(`Tema «${tema.nombre}» eliminado.`);
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'No se pudo eliminar el tema.');
+    } finally {
+      setBorrandoTema(false);
+    }
+  }
 
   // ── Generar previsualización ───────────────────────────
   async function handleGenerar(e) {
@@ -328,21 +400,82 @@ function ContenidoSubida() {
             </div>
 
             <div>
-              <label className="etiqueta">Tema</label>
-              <select
-                className="campo"
-                value={unidadId}
-                onChange={(e) => setUnidadId(e.target.value)}
-                disabled={!materiaId || unidades.length === 0}
-                required
-              >
-                <option value="">
-                  {!materiaId ? 'Selecciona una materia primero' : 'Selecciona un tema...'}
-                </option>
-                {unidades.map((u) => (
-                  <option key={u.id} value={u.id}>{u.nombre}</option>
-                ))}
-              </select>
+              <div className="fila-etiqueta-accion">
+                <label className="etiqueta">Tema</label>
+                {materiaId && !modoNuevoTema && (
+                  <button
+                    type="button"
+                    className="enlace-accion"
+                    onClick={() => { setModoNuevoTema(true); setError(''); }}
+                  >
+                    + Nuevo tema
+                  </button>
+                )}
+              </div>
+
+              {modoNuevoTema ? (
+                <div className="fila-nuevo-tema">
+                  <input
+                    type="text"
+                    className="campo"
+                    placeholder="Nombre del tema nuevo"
+                    value={nuevoTemaNombre}
+                    onChange={(e) => setNuevoTemaNombre(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); crearTema(); }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="btn-primario"
+                    onClick={crearTema}
+                    disabled={creandoTema || !nuevoTemaNombre.trim()}
+                  >
+                    {creandoTema ? 'Creando...' : 'Crear'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secundario"
+                    onClick={() => { setModoNuevoTema(false); setNuevoTemaNombre(''); }}
+                    disabled={creandoTema}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="fila-tema-select">
+                  <select
+                    className="campo"
+                    value={unidadId}
+                    onChange={(e) => setUnidadId(e.target.value)}
+                    disabled={!materiaId || unidades.length === 0}
+                    required
+                  >
+                    <option value="">
+                      {!materiaId
+                        ? 'Selecciona una materia primero'
+                        : unidades.length === 0
+                          ? 'Aún no hay temas — crea uno con «+ Nuevo tema»'
+                          : 'Selecciona un tema...'}
+                    </option>
+                    {unidades.map((u) => (
+                      <option key={u.id} value={u.id}>{u.nombre}</option>
+                    ))}
+                  </select>
+                  {unidadId && (
+                    <button
+                      type="button"
+                      className="btn-secundario btn-eliminar-tema"
+                      onClick={eliminarTema}
+                      disabled={borrandoTema}
+                      title="Eliminar este tema"
+                    >
+                      {borrandoTema ? 'Eliminando...' : 'Eliminar tema'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="cuadricula-form-2">
@@ -366,6 +499,11 @@ function ContenidoSubida() {
                 />
               </div>
             </div>
+
+            {/* Descripción del nivel Bloom seleccionado */}
+            <p className="nivel-bloom-desc">
+              {NIVELES_BLOOM.find((n) => n.valor === bloom)?.descripcion}
+            </p>
 
             <div>
               <label className="etiqueta">Archivo PDF</label>

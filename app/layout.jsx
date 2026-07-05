@@ -5,9 +5,9 @@ export const metadata = {
   description: 'Sistema de aprendizaje adaptativo con repetición espaciada',
   applicationName: 'AdaptaJIREH',
   icons: {
-    icon: '/logo-jireh.png',
-    shortcut: '/logo-jireh.png',
-    apple: '/logo-jireh.png',
+    icon: '/icon-192.png',
+    shortcut: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 

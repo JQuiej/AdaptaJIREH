@@ -50,14 +50,20 @@ async function handler(request, context, user) {
       fsrs = data;
     }
 
-    // Retenibilidad REAL al momento de este repaso (decae con los días desde el último).
-    // Así la Tasa de Olvido (TO) refleja cuánto se olvidó antes de volver a repasar.
+    // Retenibilidad REAL al momento de este repaso (decae con los días desde el
+    // último). El modelo FSRS la necesita como entrada para actualizar S.
     const diasTranscurridos = fsrs?.ultima_revision
       ? Math.max(0, (Date.now() - new Date(fsrs.ultima_revision).getTime()) / 86400000)
       : 0;
     const previousR = fsrs?.ultima_revision
       ? calculateRetrieval(fsrs?.S ?? 1, diasTranscurridos)
       : 1;
+
+    // Adherencia al Repaso (AR): ¿el estudiante repasó a tiempo respecto a la
+    // fecha que le había programado FSRS-5? A tiempo = hoy ≤ proxima_revision.
+    // El primer repaso (proxima_revision = hoy por defecto) cuenta como a tiempo.
+    const hoy = new Date().toISOString().split('T')[0];
+    const onTime = !fsrs?.proxima_revision || hoy <= fsrs.proxima_revision;
 
     // ── Evaluar respuesta ─────────────────────────────────────
     // SST (embeddings) = variable de investigación; juez LLM = corrección real
@@ -125,15 +131,14 @@ async function handler(request, context, user) {
       studentId:          user.id,
       respuestaTexto:     studentResponse,
       responseTimeMs,
-      previousR,
       newFsrs,
       sstScore,
-      unitId:             item.unidad?.id_unidad,
       bloomLevel:         item.nivel_bloom,
       feedbackType,
       rating,
       feedbackParts,
       totalItemsInSession,
+      onTime,
     });
 
     // ── Incrementar ítems completados en la sesión ────────────

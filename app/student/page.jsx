@@ -10,6 +10,18 @@ import PanelRacha from '@/components/PanelRacha';
 import Brand from '@/components/Brand';
 import api from '@/services/api';
 
+// Icono minimalista de estudio (libro abierto de trazo simple).
+function IconoAprender() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+         aria-hidden="true">
+      <path d="M12 6.5C10.5 5.2 8.5 4.5 6 4.5H3.5v13H6c2.5 0 4.5.7 6 2 1.5-1.3 3.5-2 6-2h2.5v-13H18c-2.5 0-4.5.7-6 2Z" />
+      <path d="M12 6.5v12" />
+    </svg>
+  );
+}
+
 function InsigniaRetencion({ pct }) {
   const clase = pct >= 70 ? 'retencion-alta' : pct >= 40 ? 'retencion-media' : 'retencion-baja';
   return (
@@ -77,12 +89,30 @@ export default function PanelEstudiante() {
             <span className="oculto-movil" style={{ fontSize: '0.875rem', color: 'var(--gris-500)' }}>
               {user.username}
             </span>
-            <button onClick={() => router.push('/student/learn')} className="btn-secundario">Aprender</button>
+            <button onClick={() => router.push('/student/learn')} className="btn-primario btn-aprender-header">
+              <IconoAprender /> Aprender
+            </button>
             <button onClick={cerrarSesion} className="btn-secundario">Cerrar sesión</button>
           </div>
         </header>
 
         <main className="contenido" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          {/* Acceso destacado a Aprender */}
+          <button
+            type="button"
+            className="tarjeta-aprender-cta"
+            onClick={() => router.push('/student/learn')}
+          >
+            <span className="tarjeta-aprender-icono"><IconoAprender /></span>
+            <span className="tarjeta-aprender-texto">
+              <span className="tarjeta-aprender-titulo">Aprender</span>
+              <span className="tarjeta-aprender-sub">
+                Estudia la teoría con tarjetas, a tu ritmo
+              </span>
+            </span>
+            <span className="tarjeta-aprender-flecha" aria-hidden="true">→</span>
+          </button>
+
           {/* Resumen del día */}
           <section className="tarjeta">
             <p className="titulo-seccion">Resumen de hoy</p>

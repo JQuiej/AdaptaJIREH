@@ -16,8 +16,8 @@ async function handler(request, context, user) {
       .from('respuesta')
       .select(`
         id_respuesta, timestamp_resp, tiempo_respuesta_ms,
-        SST:sst, TO_rate:to_rate, IRE_dias:ire_dias, D_post:d_post, S_post:s_post, R_post:r_post,
-        ELC:elc, CE:ce, DD:dd, CR:cr, rating_frs,
+        SST:sst, IRE_dias:ire_dias, D_post:d_post, S_post:s_post,
+        TR:tr, PA:pa, AR:ar, CE:ce, DD:dd, CR:cr, rating_frs,
         estudiante:usuario!id_estudiante(nombre_usuario, grado),
         item:item!id_item(
           nivel_bloom,

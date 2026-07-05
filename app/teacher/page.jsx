@@ -63,7 +63,7 @@ export default function PanelDocente() {
                 <div key={i} className="tarjeta-alerta">
                   <p className="alerta-nombre">{a.nombre_usuario}</p>
                   <p className="alerta-detalle">
-                    Tema: {a.nombre_unidad} — {a.olvidos_consecutivos} olvidos consecutivos en los últimos 14 días
+                    Tema: {a.nombre_unidad} — precisión {Math.round((a.precision_prom ?? 0) * 100)}% en {a.items_evaluados} ítems (últimos 14 días)
                   </p>
                 </div>
               ))}
@@ -124,7 +124,7 @@ export default function PanelDocente() {
                 Dashboard analítico
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
-                Monitorea R(t), TO, SST y exporta datos CSV para SPSS
+                Monitorea PA, AR, TR, SST y exporta datos CSV para SPSS
               </p>
             </button>
           </div>

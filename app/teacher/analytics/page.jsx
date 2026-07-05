@@ -64,18 +64,23 @@ function ContenidoAnalytics() {
     window.open(`/api/export/csv?${q}&token=${tok}`, '_blank');
   }
 
-  const avgR   = sesiones.length
-    ? (sesiones.reduce((a, r) => a + (r.R_post ?? 0), 0) / sesiones.length * 100).toFixed(0)
-    : '—';
-  const avgSST = sesiones.length
-    ? (sesiones.reduce((a, r) => a + (r.SST ?? 0), 0) / sesiones.length * 100).toFixed(0)
-    : '—';
-  const avgTO  = sesiones.length
-    ? (sesiones.reduce((a, r) => a + (r.TO_rate ?? 0), 0) / sesiones.length * 100).toFixed(0)
-    : '—';
+  // Promedio de una variable en [0,1] → porcentaje (ignora valores nulos,
+  // p. ej. TR solo existe en ítems de transferencia).
+  function promedioPct(campo) {
+    const vals = sesiones.map((r) => r[campo]).filter((v) => v != null);
+    return vals.length
+      ? (vals.reduce((a, v) => a + v, 0) / vals.length * 100).toFixed(0)
+      : '—';
+  }
+
+  const avgSST = promedioPct('SST');
+  const avgPA  = promedioPct('PA');
+  const avgAR  = promedioPct('AR');
+  const avgTR  = promedioPct('TR');
   const estUnicos = new Set(sesiones.map((r) => r.estudiante?.nombre_usuario)).size || '—';
 
-  function claseR(val) {
+  // Colorea un valor [0,1] según umbrales de logro (alto / medio / bajo).
+  function claseLogro(val) {
     if (val == null) return 'valor-normal';
     return val >= 0.7 ? 'valor-exito' : val >= 0.4 ? 'valor-advertencia' : 'valor-peligro';
   }
@@ -116,10 +121,10 @@ function ContenidoAnalytics() {
 
         {/* KPIs */}
         <div className="cuadricula-kpis-4">
-          <KPI etiqueta="Retención R(t) promedio" valor={avgR !== '—' ? `${avgR}%` : '—'} />
-          <KPI etiqueta="Similitud SST promedio"  valor={avgSST !== '—' ? `${avgSST}%` : '—'} />
-          <KPI etiqueta="Tasa de olvido TO prom." valor={avgTO !== '—' ? `${avgTO}%` : '—'} />
-          <KPI etiqueta="Estudiantes activos" valor={estUnicos} sub={`${sesiones.length} sesiones`} />
+          <KPI etiqueta="Precisión 1er intento (PA)" valor={avgPA !== '—' ? `${avgPA}%` : '—'} />
+          <KPI etiqueta="Adherencia al repaso (AR)"  valor={avgAR !== '—' ? `${avgAR}%` : '—'} />
+          <KPI etiqueta="Transferencia (TR)" valor={avgTR !== '—' ? `${avgTR}%` : '—'} sub="Bloom 3–4" />
+          <KPI etiqueta="Similitud SST promedio" valor={avgSST !== '—' ? `${avgSST}%` : '—'} sub={`${estUnicos} activos · ${sesiones.length} sesiones`} />
         </div>
 
         {/* Alertas tempranas */}
@@ -133,7 +138,7 @@ function ContenidoAnalytics() {
                 <div key={i} className="tarjeta-alerta">
                   <p className="alerta-nombre">{a.nombre_usuario}</p>
                   <p className="alerta-detalle">
-                    {a.nombre_unidad} — {a.olvidos_consecutivos} olvidos consecutivos (TO &gt; 0.7)
+                    {a.nombre_unidad} — precisión {Math.round((a.precision_prom ?? 0) * 100)}% en {a.items_evaluados} ítems (últimos 14 días)
                   </p>
                 </div>
               ))}
@@ -141,9 +146,9 @@ function ContenidoAnalytics() {
           </section>
         )}
 
-        {/* Gráfico de retención */}
+        {/* Gráfico temporal: precisión (PA) y adherencia (AR) */}
         <section className="tarjeta">
-          <p className="titulo-seccion">Evolución temporal de R(t)</p>
+          <p className="titulo-seccion">Evolución de precisión (PA) y adherencia (AR)</p>
           {cargando ? (
             <div className="grafico-vacio">Cargando datos...</div>
           ) : grafico.length === 0 ? (
@@ -152,7 +157,7 @@ function ContenidoAnalytics() {
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={grafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis
                   domain={[0, 1]}
                   tick={{ fontSize: 11, fill: '#94a3b8' }}
@@ -165,9 +170,17 @@ function ContenidoAnalytics() {
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line
                   type="monotone"
-                  dataKey="avg_retrievability"
-                  name="R(t) promedio"
+                  dataKey="promedio_pa"
+                  name="Precisión (PA)"
                   stroke="#0284c7"
+                  dot={false}
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="promedio_ar"
+                  name="Adherencia (AR)"
+                  stroke="#16a34a"
                   dot={false}
                   strokeWidth={2}
                 />
@@ -191,7 +204,7 @@ function ContenidoAnalytics() {
             <table className="tabla">
               <thead>
                 <tr>
-                  {['Estudiante','Grado','TO','IRE','D_post','S_post','R_post','SST','ELC','CE','Bloom','Rating','Fecha'].map((col) => (
+                  {['Estudiante','Grado','D','S','IRE','SST','TR','PA','AR','CE','DD (Bloom)','CR','Fecha'].map((col) => (
                     <th key={col} className="tabla-th">{col}</th>
                   ))}
                 </tr>
@@ -201,20 +214,22 @@ function ContenidoAnalytics() {
                   <tr key={r.id_respuesta}>
                     <td className="tabla-td-nombre">{r.estudiante?.nombre_usuario ?? '—'}</td>
                     <td className="tabla-td-gris">{r.estudiante?.grado ?? '—'}</td>
-                    <td className={`tabla-td ${(r.TO_rate ?? 0) > 0.7 ? 'valor-riesgo' : 'valor-normal'}`}>
-                      {r.TO_rate != null ? r.TO_rate.toFixed(2) : '—'}
-                    </td>
-                    <td className="tabla-td">{r.IRE_dias ?? '—'}</td>
                     <td className="tabla-td">{r.D_post?.toFixed(2) ?? '—'}</td>
                     <td className="tabla-td">{r.S_post?.toFixed(2) ?? '—'}</td>
-                    <td className={`tabla-td ${claseR(r.R_post)}`}>
-                      {r.R_post != null ? `${(r.R_post * 100).toFixed(0)}%` : '—'}
-                    </td>
+                    <td className="tabla-td">{r.IRE_dias ?? '—'}</td>
                     <td className="tabla-td">{r.SST?.toFixed(2) ?? '—'}</td>
-                    <td className="tabla-td">{r.ELC?.toFixed(2) ?? '—'}</td>
+                    <td className={`tabla-td ${claseLogro(r.TR)}`}>
+                      {r.TR != null ? r.TR.toFixed(2) : '—'}
+                    </td>
+                    <td className={`tabla-td ${claseLogro(r.PA)}`}>
+                      {r.PA != null ? r.PA.toFixed(2) : '—'}
+                    </td>
+                    <td className={`tabla-td ${claseLogro(r.AR)}`}>
+                      {r.AR != null ? r.AR.toFixed(2) : '—'}
+                    </td>
                     <td className="tabla-td">{r.CE ?? '—'}</td>
-                    <td className="tabla-td">{r.item?.nivel_bloom ?? '—'}</td>
-                    <td className="tabla-td">{r.rating_frs ?? '—'}</td>
+                    <td className="tabla-td">{r.DD ?? r.item?.nivel_bloom ?? '—'}</td>
+                    <td className="tabla-td">{r.CR ?? '—'}</td>
                     <td className="tabla-td-fecha">
                       {r.timestamp_resp
                         ? new Date(r.timestamp_resp).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })

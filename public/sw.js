@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || 'Tienes repasos pendientes para hoy.',
     icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    badge: '/badge-96.png',
     data: { url: data.url || '/student' },
     vibrate: [80, 40, 80],
   };
