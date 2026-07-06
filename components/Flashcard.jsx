@@ -2,21 +2,30 @@
 import { useState } from 'react';
 import BloomBadge from './BloomBadge';
 import SemanticBar from './SemanticBar';
+import MathField from './MathField';
 
 export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   const [respuesta, setRespuesta] = useState('');
   const [resultado, setResultado] = useState(null);
   const [inicio]                  = useState(() => Date.now());
 
-  // Traducción al español pre-generada (solo se muestra si el alumno la pide).
-  // Es null cuando la pregunta ya está en español → no se ofrece el botón.
+  // Traducción al español pre-generada: solo existe (no es null) cuando la
+  // pregunta está en inglés. Se muestra únicamente si el alumno la pide.
   const [verTrad, setVerTrad] = useState(false);
   const traduccion = item.pregunta_es;
+
+  // Pista opcional: el alumno la revela solo si la necesita. 'pistaUsada' queda
+  // en true si la abrió al menos una vez → PA no cuenta como intento sin ayuda.
+  const [verPista, setVerPista]     = useState(false);
+  const [pistaUsada, setPistaUsada] = useState(false);
+
+  // En Matemáticas se muestra una paleta de símbolos para escribir ecuaciones.
+  const esMatematicas = /matem[aá]tic/i.test(item.unidad?.materia?.nombre ?? '');
 
   async function handleEnviar(e) {
     e.preventDefault();
     if (!respuesta.trim()) return;
-    const res = await onSubmit(item.id, respuesta.trim(), Date.now() - inicio);
+    const res = await onSubmit(item.id, respuesta.trim(), Date.now() - inicio, pistaUsada);
     if (res) setResultado(res);
   }
 
@@ -66,13 +75,38 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
 
       {!resultado ? (
         <form onSubmit={handleEnviar} className="formulario-respuesta">
-          <textarea
-            className="campo campo-respuesta"
-            placeholder="Escribe tu respuesta aquí..."
-            value={respuesta}
-            onChange={(e) => setRespuesta(e.target.value)}
-            disabled={cargando}
-          />
+          {esMatematicas ? (
+            <MathField
+              className="campo campo-respuesta"
+              placeholder="Escribe tu respuesta aquí..."
+              value={respuesta}
+              onChange={setRespuesta}
+              disabled={cargando}
+            />
+          ) : (
+            <textarea
+              className="campo campo-respuesta"
+              placeholder="Escribe tu respuesta aquí..."
+              value={respuesta}
+              onChange={(e) => setRespuesta(e.target.value)}
+              disabled={cargando}
+            />
+          )}
+          {item.pista && (
+            <div className="flashcard-pista">
+              <button
+                type="button"
+                className="btn-pista"
+                onClick={() => { setPistaUsada(true); setVerPista((v) => !v); }}
+                aria-expanded={verPista}
+              >
+                <span className={`pista-chevron ${verPista ? 'abierto' : ''}`} aria-hidden="true">▸</span>
+                {verPista ? 'Ocultar pista' : '¿Necesitas una pista?'}
+              </button>
+              {verPista && <p className="pista-texto">{item.pista_es ?? item.pista}</p>}
+            </div>
+          )}
+
           {cargando ? (
             <div className="evaluando" aria-live="polite">
               <span>Analizando tu respuesta con IA</span>

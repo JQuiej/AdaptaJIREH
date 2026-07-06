@@ -1,9 +1,9 @@
 /**
  * Backfill de traducciones al español para ítems YA EXISTENTES.
- * EXCLUSIVO de la materia de inglés: solo traduce ítems cuya materia es inglés
- * y que aún no tienen `pregunta_es`.
+ * Traduce toda PREGUNTA y toda PISTA que ESTÉ EN INGLÉS y que aún no tenga su
+ * traducción (`pregunta_es` / `pista_es`), sin importar la materia (usa la misma
+ * heurística `pareceIngles` que el sistema).
  *
- * Requisitos: haber ejecutado la migración 004_traduccion.sql.
  * Ejecutar:  node supabase/scripts/backfill-traducciones.mjs
  *            (o:  npm run backfill:traducciones)
  *
@@ -37,11 +37,34 @@ function cargarEnv() {
   }
 }
 
-// Mismas reglas que lib/idioma.js y lib/llm.js (duplicadas aquí a propósito,
+// Heurística de idioma — misma lógica que lib/idioma.js (duplicada a propósito,
 // para que el script sea independiente del sistema de módulos de Next).
-function esMateriaIngles(nombre) {
-  const n = (nombre ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  return n.includes('ingl') || n.includes('english');
+const PALABRAS_EN = new Set([
+  'the', 'what', 'which', 'how', 'why', 'who', 'where', 'when', 'is', 'are',
+  'was', 'were', 'do', 'does', 'did', 'explain', 'describe', 'write', 'choose',
+  'of', 'and', 'or', 'to', 'in', 'on', 'with', 'your', 'you', 'a', 'an',
+  'sentence', 'word', 'verb', 'noun', 'tense', 'correct',
+]);
+const PALABRAS_ES = new Set([
+  'que', 'cual', 'como', 'por', 'para', 'quien', 'donde', 'cuando', 'es',
+  'son', 'una', 'uno', 'unos', 'unas', 'del', 'los', 'las', 'con', 'explica',
+  'describe', 'escribe', 'cuales', 'porque', 'segun', 'siguiente', 'oracion',
+]);
+
+function pareceIngles(texto) {
+  const original = (texto ?? '').toLowerCase();
+  if (/[¿¡ñ]/.test(original)) return false;
+
+  const limpio = original.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const palabras = limpio.match(/[a-z']+/g) ?? [];
+  if (palabras.length === 0) return false;
+
+  let en = 0, es = 0;
+  for (const p of palabras) {
+    if (PALABRAS_EN.has(p)) en += 1;
+    if (PALABRAS_ES.has(p)) es += 1;
+  }
+  return en > es;
 }
 
 function normalizar(s) {
@@ -53,9 +76,9 @@ async function withRetry(fn, maxAttempts = 6) {
     try {
       return await fn();
     } catch (err) {
-      const is503 = /503|high demand|Service Unavailable|overloaded/i.test(err.message ?? '');
-      if (is503 && i < maxAttempts - 1) {
-        await new Promise((r) => setTimeout(r, 2000));
+      const reintentable = /503|429|high demand|Service Unavailable|overloaded|rate|Too Many/i.test(err.message ?? '');
+      if (reintentable && i < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, Math.min(8000, 1500 * (i + 1))));
         continue;
       }
       throw err;
@@ -122,50 +145,44 @@ async function main() {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // 1) Materias de inglés
-  const { data: materias, error: matErr } = await supabase
-    .from('materia')
-    .select('id_materia, nombre');
-  if (matErr) throw matErr;
-
-  const idsIngles = new Set(
-    (materias ?? []).filter((m) => esMateriaIngles(m.nombre)).map((m) => m.id_materia)
-  );
-  if (idsIngles.size === 0) {
-    console.log('No hay materias de inglés. Nada que traducir.');
-    return;
-  }
-  console.log(`Materias de inglés encontradas: ${idsIngles.size}`);
-
-  // 2) Ítems de esas materias sin traducción
+  // 1) Ítems a los que les falta alguna traducción (pregunta_es o pista_es)
   const { data: items, error: itemErr } = await supabase
     .from('item')
-    .select('id_item, pregunta, pregunta_es, unidad:unidad_curricular!id_unidad(id_materia)')
-    .is('pregunta_es', null);
+    .select('id_item, pregunta, pregunta_es, pista, pista_es')
+    .or('pregunta_es.is.null,pista_es.is.null');
   if (itemErr) throw itemErr;
 
-  const pendientes = (items ?? []).filter((it) => idsIngles.has(it.unidad?.id_materia));
-  console.log(`Ítems de inglés sin traducción: ${pendientes.length}`);
-  if (pendientes.length === 0) return;
+  // 2) Armar la lista de textos EN INGLÉS pendientes (preguntas y pistas)
+  const tareas = [];
+  for (const it of items ?? []) {
+    if (it.pregunta_es == null && pareceIngles(it.pregunta)) {
+      tareas.push({ id: it.id_item, campo: 'pregunta_es', texto: it.pregunta });
+    }
+    if (it.pista && it.pista_es == null && pareceIngles(it.pista)) {
+      tareas.push({ id: it.id_item, campo: 'pista_es', texto: it.pista });
+    }
+  }
+  console.log(`Textos en inglés a traducir: ${tareas.length} (preguntas y pistas)`);
+  if (tareas.length === 0) return;
 
-  // 3) Traducir en lotes y actualizar
+  // 3) Traducir en lotes y actualizar el campo correspondiente
   let traducidos = 0;
   let saltados = 0;
-  for (let i = 0; i < pendientes.length; i += TAMANO_LOTE) {
-    const lote = pendientes.slice(i, i + TAMANO_LOTE);
-    console.log(`Procesando ${i + 1}–${i + lote.length} de ${pendientes.length}...`);
+  for (let i = 0; i < tareas.length; i += TAMANO_LOTE) {
+    const lote = tareas.slice(i, i + TAMANO_LOTE);
+    console.log(`Procesando ${i + 1}–${i + lote.length} de ${tareas.length}...`);
 
-    const traducciones = await translateQuestions(lote.map((it) => it.pregunta));
+    const traducciones = await translateQuestions(lote.map((t) => t.texto));
 
     for (let j = 0; j < lote.length; j++) {
       const trad = traducciones[j];
       if (!trad) { saltados++; continue; } // ya estaba en español / sin cambio
       const { error: updErr } = await supabase
         .from('item')
-        .update({ pregunta_es: trad })
-        .eq('id_item', lote[j].id_item);
+        .update({ [lote[j].campo]: trad })
+        .eq('id_item', lote[j].id);
       if (updErr) {
-        console.error(`  Error al actualizar ${lote[j].id_item}: ${updErr.message}`);
+        console.error(`  Error al actualizar ${lote[j].id} (${lote[j].campo}): ${updErr.message}`);
       } else {
         traducidos++;
       }

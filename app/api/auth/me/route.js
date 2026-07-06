@@ -7,7 +7,7 @@ async function handler(request, context, user) {
   try {
     const { data, error } = await supabase
       .from('usuario')
-      .select('id_usuario, nombre_usuario, rol, grado, codigo_anonimo')
+      .select('id_usuario, nombre_usuario, rol, grado, codigo_anonimo, debe_cambiar_clave')
       .eq('id_usuario', user.id)
       .single();
 
@@ -17,11 +17,12 @@ async function handler(request, context, user) {
 
     // Normalizar al contrato JWT estándar
     return NextResponse.json({
-      id:              data.id_usuario,
-      username:        data.nombre_usuario,
-      role:            data.rol,
-      grade:           data.grado,
-      codigo_anonimo:  data.codigo_anonimo,
+      id:                 data.id_usuario,
+      username:           data.nombre_usuario,
+      role:               data.rol,
+      grade:              data.grado,
+      codigo_anonimo:     data.codigo_anonimo,
+      mustChangePassword: data.debe_cambiar_clave,
     });
   } catch (err) {
     return handleError(err);

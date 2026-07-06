@@ -17,9 +17,9 @@ async function handler(request, context, user) {
       .select(`
         id_registro, D:d, S:s, R:r, proxima_revision, total_repasos, ultima_revision,
         item:item!id_item(
-          id_item, pregunta, pregunta_es, respuesta_ref, pista, nivel_bloom, activo,
+          id_item, pregunta, pregunta_es, respuesta_ref, pista, pista_es, nivel_bloom, activo,
           unidad:unidad_curricular!id_unidad(
-            id_unidad, nombre, nivel_bloom,
+            id_unidad, nombre, nivel_bloom, visible,
             materia:materia!id_materia(id_materia, nombre)
           )
         )
@@ -29,7 +29,8 @@ async function handler(request, context, user) {
 
     if (error) throw error;
 
-    let filas = (data ?? []).filter((r) => r.item?.activo);
+    // Solo ítems activos y de temas visibles (los ocultos no entran a la sesión).
+    let filas = (data ?? []).filter((r) => r.item?.activo && r.item?.unidad?.visible);
     if (subjectId) {
       filas = filas.filter(
         (r) => r.item?.unidad?.materia?.id_materia === subjectId
@@ -57,6 +58,7 @@ async function handler(request, context, user) {
             pregunta_es:  item.pregunta_es,
             respuesta_ref: item.respuesta_ref,
             pista:        item.pista,
+            pista_es:     item.pista_es,
             nivel_bloom:  item.nivel_bloom,
             activo:       item.activo,
             unidad:       item.unidad

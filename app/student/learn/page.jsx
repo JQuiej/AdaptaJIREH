@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import BloomBadge from '@/components/BloomBadge';
 import api from '@/services/api';
 
 // Construye el mazo de flashcards de un tema: una carta de resumen (si existe)
@@ -159,10 +158,6 @@ export default function PaginaAprender() {
         </div>
 
         <main className="contenido-aprender-estudio">
-          <div style={{ marginBottom: '0.25rem' }}>
-            <BloomBadge nivel={temaActivo.nivel_bloom} />
-          </div>
-
           <button
             type="button"
             className={`carta-estudio ${volteada ? 'volteada' : ''}`}
@@ -255,7 +250,6 @@ export default function PaginaAprender() {
                       <div className="tema-estudio-cuerpo">
                         <div className="tema-estudio-cabecera">
                           <p className="tema-titulo">{t.unidad}</p>
-                          <BloomBadge nivel={t.nivel_bloom} />
                         </div>
                         {t.resumen && <p className="tema-resumen">{t.resumen}</p>}
                         <span className="tema-estudio-meta">

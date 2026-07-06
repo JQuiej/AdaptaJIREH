@@ -92,6 +92,7 @@ export default function PanelEstudiante() {
             <button onClick={() => router.push('/student/learn')} className="btn-primario btn-aprender-header">
               <IconoAprender /> Aprender
             </button>
+            <button onClick={() => router.push('/cambiar-clave')} className="btn-secundario oculto-movil">Cambiar contraseña</button>
             <button onClick={cerrarSesion} className="btn-secundario">Cerrar sesión</button>
           </div>
         </header>

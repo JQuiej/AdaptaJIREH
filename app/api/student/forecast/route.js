@@ -13,12 +13,13 @@ async function handler(request, context, user) {
 
     const { data, error } = await supabase
       .from('item_fsrs')
-      .select('proxima_revision, item:item!id_item(activo)')
+      .select('proxima_revision, item:item!id_item(activo, unidad:unidad_curricular!id_unidad(visible))')
       .eq('id_estudiante', user.id);
 
     if (error) throw error;
 
-    const filas = (data ?? []).filter((r) => r.item?.activo);
+    // Solo ítems activos y de temas visibles.
+    const filas = (data ?? []).filter((r) => r.item?.activo && r.item?.unidad?.visible);
 
     // Inicializar los próximos N días con contador 0
     const dias = [];

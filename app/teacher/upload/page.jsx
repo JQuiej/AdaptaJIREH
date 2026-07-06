@@ -3,29 +3,16 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import api from '@/services/api';
+import MathField from '@/components/MathField';
+import BloomBadge from '@/components/BloomBadge';
+import { NIVELES_BLOOM } from '@/lib/bloom';
 
-const NIVELES_BLOOM = [
-  {
-    valor: '1',
-    etiqueta: 'Nivel 1 — Recordar',
-    descripcion: 'Recordar hechos y conceptos básicos. Preguntas de memoria: definir, listar, nombrar o identificar información tal como se enseñó.',
-  },
-  {
-    valor: '2',
-    etiqueta: 'Nivel 2 — Comprender',
-    descripcion: 'Explicar ideas con palabras propias. El alumno interpreta, resume o da ejemplos para demostrar que entendió el concepto.',
-  },
-  {
-    valor: '3',
-    etiqueta: 'Nivel 3 — Aplicar',
-    descripcion: 'Usar lo aprendido en situaciones nuevas. Resolver problemas o aplicar reglas y procedimientos a casos concretos.',
-  },
-  {
-    valor: '4',
-    etiqueta: 'Nivel 4 — Analizar',
-    descripcion: 'Descomponer y relacionar información. Comparar, distinguir causas y efectos o examinar cómo se conectan las partes de un tema.',
-  },
-];
+// Detecta si el nombre de la materia corresponde a Matemáticas, para mostrar
+// la paleta de símbolos solo en ese caso.
+const esMateriaMatematicas = (nombre) => /matem[aá]tic/i.test(nombre ?? '');
+
+// Mínimo de ítems por nivel Bloom (coincide con el backend).
+const MIN_POR_NIVEL = 3;
 
 function ContenidoSubida() {
   useAuthGuard('docente');
@@ -37,8 +24,7 @@ function ContenidoSubida() {
   const [unidades,  setUnidades]  = useState([]);
   const [materiaId, setMateriaId] = useState(params.get('subjectId') ?? '');
   const [unidadId,  setUnidadId]  = useState('');
-  const [bloom,     setBloom]     = useState('1');
-  const [cantidad,  setCantidad]  = useState('5');
+  const [porNivel,  setPorNivel]  = useState('5'); // ítems por nivel Bloom
   const [archivo,   setArchivo]   = useState(null);
 
   // ── Estado de la previsualización ──────────────────────
@@ -46,13 +32,14 @@ function ContenidoSubida() {
   const [theory,        setTheory]        = useState(null);
   const [extractedText, setExtractedText] = useState('');
   const [actual,        setActual]        = useState(0);
-  const [cantidadMas,   setCantidadMas]   = useState('5');
+  const [masPorNivel,   setMasPorNivel]   = useState('2'); // ítems extra por nivel
 
   // ── Estado de UI ───────────────────────────────────────
   const [mensaje,     setMensaje]     = useState('');
   const [error,       setError]       = useState('');
   const [cargando,    setCargando]    = useState(false);
   const [generandoMas, setGenerandoMas] = useState(false);
+  const [generandoTeoria, setGenerandoTeoria] = useState(false);
   const [guardando,   setGuardando]   = useState(false);
 
   // ── Estado para crear un tema nuevo ────────────────────
@@ -62,6 +49,9 @@ function ContenidoSubida() {
   const [borrandoTema,    setBorrandoTema]    = useState(false);
 
   const enPreview = items.length > 0;
+  const materiaMate = esMateriaMatematicas(
+    materias.find((m) => m.id === materiaId)?.nombre
+  );
 
   useEffect(() => {
     api.get('/material/subjects').then((r) => setMaterias(r.data)).catch(() => {});
@@ -86,9 +76,8 @@ function ContenidoSubida() {
     setError('');
     try {
       const { data } = await api.post('/material/units', {
-        subjectId:  materiaId,
+        subjectId: materiaId,
         nombre,
-        bloomLevel: bloom,
       });
       // Agregar el tema nuevo a la lista y seleccionarlo automáticamente.
       setUnidades((prev) =>
@@ -137,10 +126,9 @@ function ContenidoSubida() {
     setError('');
 
     const form = new FormData();
-    form.append('pdf',        archivo);
-    form.append('unitId',     unidadId);
-    form.append('bloomLevel', bloom);
-    form.append('itemCount',  cantidad);
+    form.append('pdf',      archivo);
+    form.append('unitId',   unidadId);
+    form.append('perLevel', porNivel);
 
     try {
       const { data } = await api.post('/material/upload', form, {
@@ -158,6 +146,31 @@ function ContenidoSubida() {
     }
   }
 
+  // ── Generar SOLO la teoría de un tema (sin crear ítems) ─────
+  // Recupera temas que quedaron sin teoría (p. ej. si esa generación falló).
+  async function handleGenerarTeoria() {
+    if (!archivo || !unidadId) return;
+    setGenerandoTeoria(true);
+    setMensaje('');
+    setError('');
+
+    const form = new FormData();
+    form.append('pdf',    archivo);
+    form.append('unitId', unidadId);
+
+    try {
+      const { data } = await api.post('/material/generate-theory', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+      });
+      setMensaje(data.message ?? 'Teoría generada.');
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'No se pudo generar la teoría. Intenta de nuevo.');
+    } finally {
+      setGenerandoTeoria(false);
+    }
+  }
+
   // ── Generar más ítems sin repetir ──────────────────────
   async function handleGenerarMas() {
     setGenerandoMas(true);
@@ -166,8 +179,7 @@ function ContenidoSubida() {
       const { data } = await api.post('/material/generate-more', {
         extractedText,
         unitId: unidadId,
-        bloomLevel: bloom,
-        itemCount: parseInt(cantidadMas, 10) || 5,
+        perLevel: parseInt(masPorNivel, 10) || 2,
         excludeQuestions: items.map((it) => it.question),
       }, { timeout: 120000 });
       const nuevos = data.items ?? [];
@@ -202,8 +214,7 @@ function ContenidoSubida() {
     try {
       const { data } = await api.post('/material/save', {
         unitId: unidadId,
-        bloomLevel: bloom,
-        items,
+        items, // cada ítem lleva su propio nivel `bloom`
         theory,
       }, { timeout: 120000 });
       setMensaje(data.message);
@@ -264,34 +275,65 @@ function ContenidoSubida() {
             </button>
           </div>
 
+          {/* Nivel Bloom del ítem actual */}
+          {item.bloom != null && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <BloomBadge nivel={item.bloom} />
+            </div>
+          )}
+
           {/* Tarjeta del ítem (editable) */}
           <div className="tarjeta" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label className="etiqueta">Pregunta</label>
-              <textarea
-                className="campo"
-                rows={2}
-                value={item.question ?? ''}
-                onChange={(e) => actualizarCampo('question', e.target.value)}
-              />
+              {materiaMate ? (
+                <MathField
+                  rows={2}
+                  value={item.question ?? ''}
+                  onChange={(v) => actualizarCampo('question', v)}
+                />
+              ) : (
+                <textarea
+                  className="campo"
+                  rows={2}
+                  value={item.question ?? ''}
+                  onChange={(e) => actualizarCampo('question', e.target.value)}
+                />
+              )}
             </div>
             <div>
               <label className="etiqueta">Respuesta de referencia</label>
-              <textarea
-                className="campo"
-                rows={3}
-                value={item.reference_answer ?? ''}
-                onChange={(e) => actualizarCampo('reference_answer', e.target.value)}
-              />
+              {materiaMate ? (
+                <MathField
+                  rows={3}
+                  value={item.reference_answer ?? ''}
+                  onChange={(v) => actualizarCampo('reference_answer', v)}
+                />
+              ) : (
+                <textarea
+                  className="campo"
+                  rows={3}
+                  value={item.reference_answer ?? ''}
+                  onChange={(e) => actualizarCampo('reference_answer', e.target.value)}
+                />
+              )}
             </div>
             <div>
               <label className="etiqueta">Pista</label>
-              <textarea
-                className="campo"
-                rows={2}
-                value={item.feedback_hint ?? ''}
-                onChange={(e) => actualizarCampo('feedback_hint', e.target.value)}
-              />
+              {materiaMate ? (
+                <MathField
+                  rows={2}
+                  value={item.feedback_hint ?? ''}
+                  onChange={(v) => actualizarCampo('feedback_hint', v)}
+                />
+              ) : (
+                <textarea
+                  className="campo"
+                  rows={2}
+                  value={item.feedback_hint ?? ''}
+                  onChange={(e) => actualizarCampo('feedback_hint', e.target.value)}
+                />
+              )}
             </div>
             <button
               className="btn-secundario"
@@ -301,6 +343,15 @@ function ContenidoSubida() {
               Eliminar este ítem
             </button>
           </div>
+
+          {/* Aviso: no se generó teoría (la IA pudo fallar en esa llamada) */}
+          {!(theory && (theory.resumen || theory.secciones?.length > 0)) && (
+            <p className="alerta-aviso" style={{ marginTop: '1.5rem' }}>
+              No se generaron apuntes de teoría para este tema. Puedes guardar los ítems
+              igual y luego generar la teoría con el botón «Generar solo teoría» en la
+              pantalla anterior (selecciona el mismo tema y PDF).
+            </p>
+          )}
 
           {/* Apuntes de teoría que se guardarán para "Aprender" */}
           {theory && (theory.resumen || theory.secciones?.length > 0) && (
@@ -325,18 +376,18 @@ function ContenidoSubida() {
             </details>
           )}
 
-          {/* Generar más */}
+          {/* Generar más (por nivel Bloom, sin repetir) */}
           <div className="tarjeta" style={{ marginTop: '1.5rem' }}>
-            <label className="etiqueta">¿Faltan temas? Genera más ítems (sin repetir)</label>
+            <label className="etiqueta">¿Faltan ítems? Genera más por cada nivel Bloom (sin repetir)</label>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
               <div style={{ width: '6rem' }}>
                 <input
                   type="number"
                   className="campo"
                   min={1}
-                  max={15}
-                  value={cantidadMas}
-                  onChange={(e) => setCantidadMas(e.target.value)}
+                  max={5}
+                  value={masPorNivel}
+                  onChange={(e) => setMasPorNivel(e.target.value)}
                 />
               </div>
               <button
@@ -345,10 +396,20 @@ function ContenidoSubida() {
                 onClick={handleGenerarMas}
                 disabled={generandoMas}
               >
-                {generandoMas ? 'Generando...' : 'Generar más ítems'}
+                {generandoMas
+                  ? 'Generando...'
+                  : `Generar ${(parseInt(masPorNivel, 10) || 2) * 4} ítems más (${parseInt(masPorNivel, 10) || 2} × 4 niveles)`}
               </button>
             </div>
           </div>
+
+          {/* Aviso: el tema está oculto para los alumnos */}
+          {unidades.find((u) => u.id === unidadId)?.visible === false && (
+            <p className="alerta-aviso" style={{ marginTop: '1.5rem' }}>
+              Este tema está <strong>oculto</strong> para los alumnos. Después de guardar,
+              actívalo en «Temas» para que aparezca en «Aprender» y en sus sesiones.
+            </p>
+          )}
 
           {/* Guardar */}
           <button
@@ -478,32 +539,32 @@ function ContenidoSubida() {
               )}
             </div>
 
-            <div className="cuadricula-form-2">
-              <div>
-                <label className="etiqueta">Nivel Bloom</label>
-                <select className="campo" value={bloom} onChange={(e) => setBloom(e.target.value)}>
-                  {NIVELES_BLOOM.map((n) => (
-                    <option key={n.valor} value={n.valor}>{n.etiqueta}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="etiqueta">Cantidad de preguntas</label>
-                <input
-                  type="number"
-                  className="campo"
-                  min={5}
-                  max={30}
-                  value={cantidad}
-                  onChange={(e) => setCantidad(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className="etiqueta">Ítems por nivel Bloom</label>
+              <input
+                type="number"
+                className="campo"
+                min={MIN_POR_NIVEL}
+                max={10}
+                value={porNivel}
+                onChange={(e) => setPorNivel(e.target.value)}
+              />
+              <p className="nivel-bloom-desc" style={{ marginTop: '0.5rem' }}>
+                El sistema genera esta cantidad de preguntas <strong>en cada uno de los 4 niveles
+                de Bloom</strong> (total: {(parseInt(porNivel, 10) || MIN_POR_NIVEL) * 4} ítems),
+                para que ningún nivel del tema quede con muy pocos ítems. Mínimo {MIN_POR_NIVEL} por nivel.
+              </p>
             </div>
 
-            {/* Descripción del nivel Bloom seleccionado */}
-            <p className="nivel-bloom-desc">
-              {NIVELES_BLOOM.find((n) => n.valor === bloom)?.descripcion}
-            </p>
+            {/* Niveles de Bloom que se generarán */}
+            <ul className="lista-niveles-bloom">
+              {NIVELES_BLOOM.map((n) => (
+                <li key={n.valor}>
+                  <BloomBadge nivel={n.valor} />
+                  <span>{n.descripcion}</span>
+                </li>
+              ))}
+            </ul>
 
             <div>
               <label className="etiqueta">Archivo PDF</label>
@@ -528,9 +589,26 @@ function ContenidoSubida() {
               {cargando ? 'Generando ítems con IA...' : 'Generar ítems con IA'}
             </button>
           </form>
+
+          {/* Recuperación: generar solo la teoría de un tema que ya tiene ítems
+              pero quedó sin apuntes para «Aprender». */}
+          <div className="bloque-solo-teoria">
+            <p className="solo-teoria-texto">
+              ¿El tema ya tiene ítems pero no aparece teoría en «Aprender»? Selecciona
+              el tema y su PDF, y genera solo los apuntes (no crea ítems nuevos).
+            </p>
+            <button
+              type="button"
+              className="btn-secundario btn-ancho"
+              onClick={handleGenerarTeoria}
+              disabled={generandoTeoria || !archivo || !unidadId}
+            >
+              {generandoTeoria ? 'Generando teoría...' : 'Generar solo teoría'}
+            </button>
+          </div>
         </div>
 
-        {cargando && (
+        {(cargando || generandoTeoria) && (
           <p className="nota-carga">
             Este proceso puede tardar entre 30 y 60 segundos según el tamaño del PDF.
           </p>

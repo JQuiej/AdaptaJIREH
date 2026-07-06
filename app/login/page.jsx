@@ -20,7 +20,12 @@ export default function PaginaInicioSesion() {
     try {
       const { data } = await api.post('/auth/login', { username: usuario, password: clave });
       setAuth(data.token, data.user);
-      router.push(data.user.role === 'docente' ? '/teacher' : '/student');
+      // Si todavía tiene la contraseña por defecto, se le ofrece cambiarla.
+      if (data.user.mustChangePassword) {
+        router.push('/cambiar-clave');
+      } else {
+        router.push(data.user.role === 'docente' ? '/teacher' : '/student');
+      }
     } catch (err) {
       setError(err.response?.data?.error ?? 'Credenciales incorrectas. Verifica tus datos.');
     } finally {

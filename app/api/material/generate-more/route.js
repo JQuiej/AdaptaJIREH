@@ -2,19 +2,19 @@ import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
-import { generateItems } from '@/lib/llm';
+import { generateItemsByLevel } from '@/lib/llm';
 
-// Genera ítems ADICIONALES sobre el mismo material/nivel, excluyendo las preguntas
-// que el docente ya tiene en pantalla para no repetir. No guarda en BD.
+// Genera ítems ADICIONALES sobre el mismo material, distribuidos en los 4 niveles
+// Bloom (perLevel por nivel), excluyendo las preguntas que el docente ya tiene en
+// pantalla para no repetir. No guarda en BD.
 async function handler(request) {
   try {
     const body = await request.json();
-    requireFields(body, ['extractedText', 'unitId', 'bloomLevel']);
+    requireFields(body, ['extractedText', 'unitId']);
     const {
       extractedText,
       unitId,
-      bloomLevel,
-      itemCount = 5,
+      perLevel = 2,
       excludeQuestions = [],
     } = body;
 
@@ -31,12 +31,11 @@ async function handler(request) {
       );
     }
 
-    const items = await generateItems({
+    const items = await generateItemsByLevel({
       extractedText,
       subjectName: unidad.materia?.nombre ?? 'Materia',
       unitName:    unidad.nombre,
-      bloomLevel:  parseInt(bloomLevel, 10),
-      itemCount:   parseInt(itemCount, 10),
+      perLevel:    Math.max(1, parseInt(perLevel, 10) || 2),
       excludeQuestions,
     });
 

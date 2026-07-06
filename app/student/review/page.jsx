@@ -42,7 +42,7 @@ function ContenidoRepaso() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  async function handleEnviar(itemId, respuesta, responseTimeMs) {
+  async function handleEnviar(itemId, respuesta, responseTimeMs, usedHint = false) {
     setEvaluando(true);
     try {
       const { data } = await api.post('/fsrs/evaluate', {
@@ -51,6 +51,7 @@ function ContenidoRepaso() {
         responseTimeMs,
         totalItemsInSession: cola.length, // carga cognitiva (CE)
         sessionId,
+        usedHint,                         // PA no cuenta como intento sin ayuda
       });
       addReviewed(itemId);
       return data;

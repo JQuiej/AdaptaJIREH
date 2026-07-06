@@ -4,15 +4,22 @@ import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
 import { computeReferenceEmbedding } from '@/lib/nlp';
 import { translateQuestions } from '@/lib/llm';
-import { esMateriaIngles } from '@/lib/idioma';
+import { pareceIngles } from '@/lib/idioma';
 
 // Guarda en BD los ítems que el docente aprobó en la previsualización,
 // calcula sus embeddings y los asigna (item_fsrs) a los estudiantes inscritos.
 async function handler(request) {
   try {
     const body = await request.json();
-    requireFields(body, ['unitId', 'bloomLevel', 'items']);
+    requireFields(body, ['unitId', 'items']);
     const { unitId, bloomLevel, items, theory } = body;
+
+    // Nivel Bloom por ítem: cada uno trae su `bloom` (1-4). Si faltara, se usa
+    // el bloomLevel general recibido o 1 como respaldo.
+    const nivelDe = (it) => {
+      const n = parseInt(it?.bloom ?? bloomLevel ?? 1, 10);
+      return Math.min(4, Math.max(1, Number.isFinite(n) ? n : 1));
+    };
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -34,14 +41,29 @@ async function handler(request) {
       );
     }
 
-    // La traducción al español es exclusiva de la materia de inglés. En otras
-    // materias (matemáticas, etc.) no se traduce y no se ofrece el botón.
-    // null = sin traducción → el alumno no ve la opción.
-    let traducciones = items.map(() => null);
-    if (esMateriaIngles(unidad.materia?.nombre)) {
+    // Traducir al español SOLO los textos que están en inglés (preguntas y
+    // pistas). Los que ya están en español quedan en null.
+    const traducciones      = items.map(() => null); // traducción de la pregunta
+    const traduccionesPista  = items.map(() => null); // traducción de la pista
+
+    const idxIngles = items
+      .map((it, i) => (pareceIngles(it.question) ? i : -1))
+      .filter((i) => i >= 0);
+    if (idxIngles.length) {
       try {
-        traducciones = await translateQuestions(items.map((it) => it.question));
-      } catch { traducciones = items.map(() => null); }
+        const trads = await translateQuestions(idxIngles.map((i) => items[i].question));
+        idxIngles.forEach((origIdx, k) => { traducciones[origIdx] = trads[k] ?? null; });
+      } catch { /* si falla, los ítems quedan sin traducción */ }
+    }
+
+    const idxPistaIngles = items
+      .map((it, i) => (it.feedback_hint && pareceIngles(it.feedback_hint) ? i : -1))
+      .filter((i) => i >= 0);
+    if (idxPistaIngles.length) {
+      try {
+        const trads = await translateQuestions(idxPistaIngles.map((i) => items[i].feedback_hint));
+        idxPistaIngles.forEach((origIdx, k) => { traduccionesPista[origIdx] = trads[k] ?? null; });
+      } catch { /* si falla, la pista queda sin traducción */ }
     }
 
     // Calcular embeddings de cada respuesta de referencia (en paralelo)
@@ -53,11 +75,12 @@ async function handler(request) {
         } catch { /* embedding opcional */ }
         return {
           id_unidad:     unitId,
-          nivel_bloom:   parseInt(bloomLevel, 10),
+          nivel_bloom:   nivelDe(it),
           pregunta:      it.question,
-          pregunta_es:   traducciones[i] ?? null,
+          pregunta_es:   traducciones[i] ?? null,      // solo si la pregunta está en inglés
           respuesta_ref: it.reference_answer,
           pista:         it.feedback_hint,
+          pista_es:      traduccionesPista[i] ?? null,  // solo si la pista está en inglés
           embedding_ref,
         };
       })

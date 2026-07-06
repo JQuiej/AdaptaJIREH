@@ -12,7 +12,7 @@ export async function POST(request) {
 
     const { data: dbUser, error } = await supabase
       .from('usuario')
-      .select('id_usuario, nombre_usuario, clave_hash, rol, grado')
+      .select('id_usuario, nombre_usuario, clave_hash, rol, grado, debe_cambiar_clave')
       .eq('nombre_usuario', username.trim())
       .single();
 
@@ -31,7 +31,12 @@ export async function POST(request) {
       grade:    dbUser.grado,
     };
 
-    return NextResponse.json({ token: signToken(payload), user: payload });
+    // mustChangePassword no va en el token (podría quedar obsoleto tras el
+    // cambio); se envía solo en el objeto user para el flujo de UI.
+    return NextResponse.json({
+      token: signToken(payload),
+      user:  { ...payload, mustChangePassword: dbUser.debe_cambiar_clave },
+    });
   } catch (err) {
     return handleError(err);
   }

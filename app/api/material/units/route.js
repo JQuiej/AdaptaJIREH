@@ -15,17 +15,32 @@ async function handler(request, context, user) {
 
     const { data, error } = await supabase
       .from('unidad_curricular')
-      .select('id_unidad, nombre, nivel_bloom')
+      .select('id_unidad, nombre, nivel_bloom, visible')
       .eq('id_materia', subjectId)
       .order('nombre');
 
     if (error) throw error;
+
+    // Conteo de ítems por tema (para saber cuáles ya están listos para activar).
+    const unitIds = (data ?? []).map((u) => u.id_unidad);
+    const conteos = {};
+    if (unitIds.length) {
+      const { data: its } = await supabase
+        .from('item')
+        .select('id_unidad')
+        .in('id_unidad', unitIds);
+      for (const it of its ?? []) {
+        conteos[it.id_unidad] = (conteos[it.id_unidad] ?? 0) + 1;
+      }
+    }
 
     // Normalizar: exponer 'id' para compatibilidad con el frontend
     const result = (data ?? []).map((u) => ({
       id:          u.id_unidad,
       nombre:      u.nombre,
       nivel_bloom: u.nivel_bloom,
+      visible:     u.visible,
+      items:       conteos[u.id_unidad] ?? 0,
     }));
 
     return NextResponse.json(result);
@@ -82,16 +97,24 @@ async function crearHandler(request, context, user) {
 
     const nivel = Math.min(4, Math.max(1, parseInt(bloomLevel, 10) || 2));
 
+    // Los temas nuevos nacen OCULTOS: el docente los activa desde «Temas»
+    // cuando quiera que los alumnos los vean.
     const { data: unidad, error: insErr } = await supabase
       .from('unidad_curricular')
-      .insert({ id_materia: subjectId, nombre: nombreLimpio, nivel_bloom: nivel })
-      .select('id_unidad, nombre, nivel_bloom')
+      .insert({ id_materia: subjectId, nombre: nombreLimpio, nivel_bloom: nivel, visible: false })
+      .select('id_unidad, nombre, nivel_bloom, visible')
       .single();
 
     if (insErr) throw insErr;
 
     return NextResponse.json(
-      { id: unidad.id_unidad, nombre: unidad.nombre, nivel_bloom: unidad.nivel_bloom },
+      {
+        id:          unidad.id_unidad,
+        nombre:      unidad.nombre,
+        nivel_bloom: unidad.nivel_bloom,
+        visible:     unidad.visible,
+        items:       0,
+      },
       { status: 201 }
     );
   } catch (err) {
@@ -139,6 +162,45 @@ async function borrarHandler(request, context, user) {
   }
 }
 
+// Muestra u oculta un tema para los alumnos (visibilidad).
+async function actualizarHandler(request, context, user) {
+  try {
+    const body = await request.json();
+    requireFields(body, ['unitId']);
+    const { unitId, visible } = body;
+
+    // Verificar que el tema pertenezca a una materia del docente autenticado.
+    const { data: unidad, error: uErr } = await supabase
+      .from('unidad_curricular')
+      .select('id_unidad, materia:materia!id_materia(id_docente)')
+      .eq('id_unidad', unitId)
+      .single();
+
+    if (uErr || !unidad || unidad.materia?.id_docente !== user.id) {
+      return NextResponse.json({ error: 'Tema no encontrado', code: 'NOT_FOUND' }, { status: 404 });
+    }
+
+    const { data: upd, error: updErr } = await supabase
+      .from('unidad_curricular')
+      .update({ visible: !!visible })
+      .eq('id_unidad', unitId)
+      .select('id_unidad, nombre, nivel_bloom, visible')
+      .single();
+
+    if (updErr) throw updErr;
+
+    return NextResponse.json({
+      id:          upd.id_unidad,
+      nombre:      upd.nombre,
+      nivel_bloom: upd.nivel_bloom,
+      visible:     upd.visible,
+    });
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
 export const GET    = withAuth(handler, 'docente');
 export const POST   = withAuth(crearHandler, 'docente');
+export const PATCH  = withAuth(actualizarHandler, 'docente');
 export const DELETE = withAuth(borrarHandler, 'docente');

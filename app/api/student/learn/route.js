@@ -25,27 +25,24 @@ async function handler(request, context, user) {
       .from('teoria')
       .select(`
         id_teoria, resumen, secciones, creado_en,
-        unidad:unidad_curricular!id_unidad(id_unidad, nombre, id_materia, nivel_bloom)
+        unidad:unidad_curricular!id_unidad(id_unidad, nombre, id_materia, nivel_bloom, visible)
       `);
     if (teoErr) throw teoErr;
 
+    // Solo temas visibles (los ocultos no aparecen para el alumno).
     const relevantes = (teorias ?? []).filter(
-      (t) => t.unidad && idsMaterias.includes(t.unidad.id_materia)
+      (t) => t.unidad && t.unidad.visible && idsMaterias.includes(t.unidad.id_materia)
     );
 
-    // Agrupar por materia y ordenar los temas en orden lógico de aprendizaje:
-    // de lo más básico a lo más complejo (nivel de Bloom ascendente) y, dentro
-    // del mismo nivel, por antigüedad (lo subido primero va primero).
+    // Agrupar por materia y ordenar los temas por orden de subida (lo que el
+    // docente publica primero va primero), que refleja la secuencia de lo más
+    // básico a lo más complejo con la que arma el curso.
     const resultado = materias.map((m) => ({
       id:     m.id_materia,
       nombre: m.nombre,
       temas:  relevantes
         .filter((t) => t.unidad.id_materia === m.id_materia)
-        .sort((a, b) => {
-          const db = (a.unidad.nivel_bloom ?? 99) - (b.unidad.nivel_bloom ?? 99);
-          if (db !== 0) return db;
-          return (a.creado_en ?? '').localeCompare(b.creado_en ?? '');
-        })
+        .sort((a, b) => (a.creado_en ?? '').localeCompare(b.creado_en ?? ''))
         .map((t) => ({
           id:          t.id_teoria,
           unidad:      t.unidad.nombre,

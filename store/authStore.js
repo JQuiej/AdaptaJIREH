@@ -9,6 +9,8 @@ export const useAuthStore = create(
       user: null,
       hasHydrated: false, // true cuando ya se leyó localStorage
       setAuth: (token, user) => set({ token, user }),
+      updateUser: (patch) =>
+        set((s) => ({ user: s.user ? { ...s.user, ...patch } : s.user })),
       clearAuth: () => set({ token: null, user: null }),
       setHasHydrated: (v) => set({ hasHydrated: v }),
     }),

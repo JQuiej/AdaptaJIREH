@@ -46,7 +46,11 @@ export default function PanelDocente() {
         </div>
         <div className="acciones-header">
           <button onClick={() => router.push('/teacher/upload')}    className="btn-primario">Subir material</button>
+          <button onClick={() => router.push('/teacher/temas')}     className="btn-secundario">Temas</button>
+          <button onClick={() => router.push('/teacher/items')}     className="btn-secundario">Mis ítems</button>
           <button onClick={() => router.push('/teacher/analytics')} className="btn-secundario">Dashboard</button>
+          <button onClick={() => router.push('/teacher/admin')}     className="btn-secundario">Administrar</button>
+          <button onClick={() => router.push('/cambiar-clave')}     className="btn-secundario">Cambiar contraseña</button>
           <button onClick={cerrarSesion}                            className="btn-secundario">Cerrar sesión</button>
         </div>
       </header>
@@ -117,6 +121,22 @@ export default function PanelDocente() {
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
                 Carga un PDF y genera preguntas automáticamente con IA
+              </p>
+            </button>
+            <button className="tarjeta-accion" onClick={() => router.push('/teacher/temas')}>
+              <p style={{ fontWeight: 500, color: 'var(--gris-800)', fontSize: '0.875rem' }}>
+                Temas
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
+                Activa u oculta temas para controlar qué ven los alumnos y cuándo
+              </p>
+            </button>
+            <button className="tarjeta-accion" onClick={() => router.push('/teacher/items')}>
+              <p style={{ fontWeight: 500, color: 'var(--gris-800)', fontSize: '0.875rem' }}>
+                Mis ítems
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
+                Revisa tus preguntas como flashcards con el % de aciertos de los alumnos
               </p>
             </button>
             <button className="tarjeta-accion" onClick={() => router.push('/teacher/analytics')}>

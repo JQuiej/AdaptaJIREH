@@ -3,21 +3,24 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
-import { generateItems, generateTheory } from '@/lib/llm';
+import { generateItemsByLevel, generateTheory, MAX_CONTEXT_CHARS } from '@/lib/llm';
+
+// Mínimo de ítems por nivel Bloom, para no dejar niveles con muy pocos ítems.
+const MIN_POR_NIVEL = 3;
 
 // Genera una PREVISUALIZACIÓN de ítems a partir del PDF. NO los guarda en BD;
 // el docente los revisa y luego confirma con /api/material/save.
+// Genera automáticamente `perLevel` ítems por cada uno de los 4 niveles de Bloom.
 async function handler(request) {
   try {
     const formData = await request.formData();
-    const file       = formData.get('pdf');
-    const unitId     = formData.get('unitId');
-    const bloomLevel = parseInt(formData.get('bloomLevel'), 10);
-    const itemCount  = parseInt(formData.get('itemCount') ?? '15', 10);
+    const file     = formData.get('pdf');
+    const unitId   = formData.get('unitId');
+    const perLevel = Math.max(MIN_POR_NIVEL, parseInt(formData.get('perLevel') ?? '5', 10) || 5);
 
-    if (!file || !unitId || !bloomLevel) {
+    if (!file || !unitId) {
       return NextResponse.json(
-        { error: 'pdf, unitId y bloomLevel son requeridos', code: 'MISSING_FIELDS' },
+        { error: 'pdf y unitId son requeridos', code: 'MISSING_FIELDS' },
         { status: 400 }
       );
     }
@@ -49,9 +52,9 @@ async function handler(request) {
     const subjectName = unidad.materia?.nombre ?? 'Materia';
     const unitName    = unidad.nombre;
 
-    // Generar ítems (crítico, con reintentos) y luego la teoría (no crítica).
-    // Secuencial para no duplicar la carga sobre Gemini y evitar 503.
-    const items = await generateItems({ extractedText, subjectName, unitName, bloomLevel, itemCount });
+    // Generar ítems distribuidos en los 4 niveles Bloom (crítico, con reintentos)
+    // y luego la teoría (no crítica). Secuencial para no saturar Gemini (503).
+    const items = await generateItemsByLevel({ extractedText, subjectName, unitName, perLevel });
 
     let theory = null;
     try {
@@ -61,11 +64,11 @@ async function handler(request) {
     }
 
     return NextResponse.json({
-      items,
+      items, // cada ítem incluye su nivel `bloom`
       theory, // { resumen, secciones } — apuntes de estudio
       // Se devuelve el texto (truncado al que realmente usa el modelo) para poder
       // "generar más" sin re-subir el PDF.
-      extractedText: extractedText.slice(0, 15000),
+      extractedText: extractedText.slice(0, MAX_CONTEXT_CHARS),
       subjectName,
       unitName,
     });

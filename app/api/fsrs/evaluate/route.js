@@ -16,13 +16,14 @@ async function handler(request, context, user) {
       studentResponse = '',
       responseTimeMs  = 0,
       totalItemsInSession = 1,
+      usedHint = false,
     } = body;
 
     // ── Obtener ítem ──────────────────────────────────────────
     const { data: item, error: itemErr } = await supabase
       .from('item')
       .select(`
-        id_item, pregunta, respuesta_ref, pista,
+        id_item, pregunta, respuesta_ref, pista, pista_es,
         nivel_bloom, embedding_ref,
         unidad:unidad_curricular!id_unidad(id_unidad)
       `)
@@ -139,6 +140,7 @@ async function handler(request, context, user) {
       feedbackParts,
       totalItemsInSession,
       onTime,
+      usedHint,
     });
 
     // ── Incrementar ítems completados en la sesión ────────────
@@ -150,7 +152,7 @@ async function handler(request, context, user) {
       sst_score:        sstScore,    // similitud por embeddings
       grade_score:      gradeScore,  // corrección juzgada por el LLM (lo que se muestra)
       feedback_type:    feedbackType,
-      feedback:         feedbackParts?.texto ?? (gradeScore < 0.71 ? item.pista : null),
+      feedback:         feedbackParts?.texto ?? (gradeScore < 0.71 ? (item.pista_es ?? item.pista) : null),
       feedback_parts:   feedbackParts
         ? {
             diagnostico: feedbackParts.diagnostico,

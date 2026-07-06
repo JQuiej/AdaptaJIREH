@@ -37,14 +37,14 @@ async function handler(request, context, user) {
             proxima_revision, D:d, S:s, R:r, ultima_revision,
             item:item!id_item(
               id_item, nivel_bloom, activo,
-              unidad:unidad_curricular!id_unidad(id_unidad, id_materia)
+              unidad:unidad_curricular!id_unidad(id_unidad, id_materia, visible)
             )
           `)
           .eq('id_estudiante', user.id)
           .eq('item.unidad.id_materia', m.id_materia);
 
         const filas   = (fsrsRows ?? []).filter(
-          (r) => r.item?.activo && r.item?.unidad?.id_materia === m.id_materia
+          (r) => r.item?.activo && r.item?.unidad?.visible && r.item?.unidad?.id_materia === m.id_materia
         );
 
         // El conteo del panel refleja la sesión real (misma compuerta de Bloom).
