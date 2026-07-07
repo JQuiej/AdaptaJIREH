@@ -39,6 +39,7 @@ export default function PanelEstudiante() {
   const [pronostico, setPronostico] = useState([]);
   const [cargando,  setCargando]  = useState(true);
   const [iniciando, setIniciando] = useState(null);
+  const [dato,      setDato]      = useState(null); // dato curioso diario
 
   const cargar = useCallback(async () => {
     try {
@@ -53,6 +54,20 @@ export default function PanelEstudiante() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Dato curioso del día (solo la primera vez que entra). No bloquea el panel.
+  // Al mostrarlo se marca como visto en el servidor (POST), de forma que si la
+  // respuesta nunca llegara a mostrarse, el dato no se pierde.
+  useEffect(() => {
+    api.get('/student/daily-fact')
+      .then((r) => {
+        if (r.data?.fact?.texto) {
+          setDato(r.data.fact);
+          api.post('/student/daily-fact').catch(() => {}); // marcar visto (fire-and-forget)
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function iniciarSesion(materiaId) {
     setIniciando(materiaId);
@@ -185,6 +200,30 @@ export default function PanelEstudiante() {
           </section>
         </main>
       </div>
+
+      {/* Modal del dato curioso del día (primera entrada) */}
+      {dato && (
+        <div className="dato-overlay" onClick={() => setDato(null)}>
+          <div className="dato-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="dato-modal-cerrar"
+              onClick={() => setDato(null)}
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+            <span className="dato-modal-icono" aria-hidden="true">💡</span>
+            <p className="dato-modal-titulo">
+              ¿Sabías que…{dato.tema ? <span className="dato-modal-tema"> {dato.tema}</span> : ''}
+            </p>
+            <p className="dato-modal-cuerpo">{dato.texto}</p>
+            <button type="button" className="btn-primario btn-ancho" onClick={() => setDato(null)}>
+              ¡Genial! Empezar
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

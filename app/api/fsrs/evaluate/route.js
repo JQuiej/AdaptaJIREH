@@ -103,10 +103,12 @@ async function handler(request, context, user) {
     }
 
     // ── Actualizar FSRS (rating según la corrección del LLM) ───
+    // En el 1er repaso (total_repasos = 0) el algoritmo fija D₀ y S₀ e ignora
+    // los valores previos; en los siguientes usa D y S guardados.
     const rating  = ratingFromSST(gradeScore);
     const newFsrs = updateFSRS(
-      fsrs?.D ?? 0.3,
-      fsrs?.S ?? 1.0,
+      fsrs?.D,
+      fsrs?.S,
       previousR,
       rating,
       fsrs?.total_repasos ?? 0

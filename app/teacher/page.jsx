@@ -47,6 +47,7 @@ export default function PanelDocente() {
         <div className="acciones-header">
           <button onClick={() => router.push('/teacher/upload')}    className="btn-primario">Subir material</button>
           <button onClick={() => router.push('/teacher/temas')}     className="btn-secundario">Temas</button>
+          <button onClick={() => router.push('/teacher/theory')}    className="btn-secundario">Material de estudio</button>
           <button onClick={() => router.push('/teacher/items')}     className="btn-secundario">Mis ítems</button>
           <button onClick={() => router.push('/teacher/analytics')} className="btn-secundario">Dashboard</button>
           <button onClick={() => router.push('/teacher/admin')}     className="btn-secundario">Administrar</button>
@@ -129,6 +130,14 @@ export default function PanelDocente() {
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
                 Activa u oculta temas para controlar qué ven los alumnos y cuándo
+              </p>
+            </button>
+            <button className="tarjeta-accion" onClick={() => router.push('/teacher/theory')}>
+              <p style={{ fontWeight: 500, color: 'var(--gris-800)', fontSize: '0.875rem' }}>
+                Material de estudio
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
+                Revisa y edita los apuntes de cada tema; agrega secciones que falten
               </p>
             </button>
             <button className="tarjeta-accion" onClick={() => router.push('/teacher/items')}>

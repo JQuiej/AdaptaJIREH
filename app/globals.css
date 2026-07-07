@@ -426,10 +426,252 @@ input, select, textarea { font-family: inherit; }
   line-height: 1.5;
   margin: 0.25rem 0;
   flex: 1;
+  white-space: pre-line; /* respeta los saltos de línea de preguntas de opción */
 }
 .flip-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .stat-mini { font-size: 0.75rem; color: var(--gris-400); }
 .flip-hint { font-size: 0.6875rem; color: var(--gris-400); text-align: right; }
+
+.flip-acciones { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem; }
+.btn-regenerar {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primario-texto);
+  background: var(--primario-bg);
+  border: 1px solid var(--primario-borde);
+  border-radius: 999px;
+  padding: 0.1875rem 0.625rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-regenerar:hover { background: var(--primario-borde); }
+
+/* ── Modal de regeneración de ítem ───────────────────────────── */
+.regen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(15 23 42 / 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.regen-modal {
+  background: #fff;
+  border-radius: var(--radio-lg, 10px);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 30rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgb(15 23 42 / 0.25);
+}
+.regen-titulo { font-size: 1.125rem; font-weight: 700; color: var(--gris-900); margin: 0 0 0.5rem; }
+.regen-sub { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; color: var(--gris-500); margin: 0 0 0.75rem; }
+.regen-pregunta-actual {
+  font-size: 0.875rem;
+  color: var(--gris-700);
+  background: var(--gris-50);
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio-lg, 10px);
+  padding: 0.625rem 0.75rem;
+  margin: 0 0 1rem;
+  line-height: 1.5;
+  white-space: pre-line; /* respeta los saltos de línea de preguntas de opción */
+}
+.regen-opciones { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.375rem; }
+.regen-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  text-align: left;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio-lg, 10px);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.regen-opcion:hover { border-color: var(--primario-borde); }
+.regen-opcion.activa { border-color: var(--primario); background: var(--primario-bg); }
+.regen-opcion strong { font-size: 0.875rem; color: var(--gris-900); }
+.regen-opcion span { font-size: 0.75rem; color: var(--gris-500); }
+.regen-opcion:disabled { opacity: 0.6; cursor: not-allowed; }
+.regen-botones { display: flex; justify-content: flex-end; gap: 0.625rem; margin-top: 1.25rem; }
+
+.toast-exito {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  background: #166534;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.625rem 1.25rem;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgb(15 23 42 / 0.25);
+}
+
+/* ── Dato curioso diario (modal del estudiante) ──────────────── */
+.dato-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgb(15 23 42 / 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: dato-fade 0.18s ease-out;
+}
+@keyframes dato-fade { from { opacity: 0; } to { opacity: 1; } }
+.dato-modal {
+  position: relative;
+  background: linear-gradient(165deg, var(--primario-bg) 0%, #fff 55%);
+  border: 1px solid var(--primario-borde);
+  border-radius: var(--radio-lg, 10px);
+  padding: 1.75rem 1.5rem 1.5rem;
+  width: 100%;
+  max-width: 26rem;
+  text-align: center;
+  box-shadow: 0 12px 40px rgb(15 23 42 / 0.28);
+  animation: dato-pop 0.2s ease-out;
+}
+@keyframes dato-pop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.dato-modal-cerrar {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--gris-400);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.25rem;
+}
+.dato-modal-cerrar:hover { color: var(--gris-600); }
+.dato-modal-icono { font-size: 2.5rem; line-height: 1; display: block; margin-bottom: 0.5rem; }
+.dato-modal-titulo {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primario-texto);
+  margin: 0 0 0.5rem;
+}
+.dato-modal-tema { text-transform: none; }
+.dato-modal-cuerpo {
+  font-size: 1rem;
+  color: var(--gris-800);
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+}
+
+/* ── Módulo de material de estudio (teoría) ──────────────────── */
+.teoria-fila { padding: 0; overflow: hidden; }
+.teoria-fila-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.teoria-fila-cab:hover { background: var(--gris-50); }
+.teoria-fila-cab .tema-vis-meta { display: flex; align-items: center; gap: 0.375rem; margin-top: 0.25rem; }
+.teoria-chevron { color: var(--gris-400); font-size: 0.875rem; transition: transform 0.2s; flex-shrink: 0; }
+.teoria-chevron.abierto { transform: rotate(180deg); }
+
+.teoria-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem 1rem;
+  border-top: 1px solid var(--gris-200);
+}
+.teoria-secciones-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.btn-mini { font-size: 0.75rem; padding: 0.25rem 0.625rem; }
+.teoria-secciones-acc { display: flex; gap: 0.375rem; flex-wrap: wrap; }
+.teoria-aviso-ia {
+  font-size: 0.8125rem;
+  color: var(--primario-texto);
+  background: var(--primario-bg);
+  border: 1px solid var(--primario-borde);
+  border-radius: var(--radio-lg, 10px);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0 0;
+}
+.teoria-vacia-hint {
+  font-size: 0.8125rem;
+  color: var(--gris-500);
+  background: var(--gris-50);
+  border: 1px dashed var(--gris-200);
+  border-radius: var(--radio-lg, 10px);
+  padding: 0.75rem;
+  margin: 0.25rem 0 0;
+}
+.teoria-lista-secciones { display: flex; flex-direction: column; gap: 0.875rem; margin-top: 0.25rem; }
+.teoria-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio-lg, 10px);
+  background: #fff;
+  box-shadow: var(--sombra-sm);
+}
+
+/* Textareas que crecen con su contenido: sin scroll interno, texto legible */
+.teoria-textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 0;
+  line-height: 1.65;
+  font-size: 0.9rem;
+  color: var(--gris-800);
+}
+.teoria-titulo-input {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gris-900);
+}
+.teoria-seccion-cab { display: flex; align-items: center; justify-content: space-between; }
+.teoria-seccion-num { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--gris-400); }
+.teoria-seccion-acciones { display: flex; gap: 0.25rem; }
+.icono-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--gris-200);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--gris-600);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+.icono-btn:hover:not(:disabled) { border-color: var(--primario-borde); color: var(--primario); }
+.icono-btn.peligro:hover:not(:disabled) { border-color: var(--peligro-borde); color: var(--peligro); }
+.icono-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.teoria-editor-botones { display: flex; justify-content: flex-end; margin-top: 1rem; }
 
 .stat-pill {
   font-size: 0.75rem;
@@ -710,6 +952,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--gris-900);
   line-height: 1.6;
   width: 100%;
+  white-space: pre-line; /* respeta los saltos de línea de preguntas de opción */
 }
 .btn-traducir {
   align-self: flex-start;

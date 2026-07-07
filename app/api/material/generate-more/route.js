@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
 import { generateItemsByLevel } from '@/lib/llm';
+import { esMateriaIngles } from '@/lib/idioma';
 
 // Genera ítems ADICIONALES sobre el mismo material, distribuidos en los 4 niveles
 // Bloom (perLevel por nivel), excluyendo las preguntas que el docente ya tiene en
@@ -31,12 +32,14 @@ async function handler(request) {
       );
     }
 
+    const subjectName = unidad.materia?.nombre ?? 'Materia';
     const items = await generateItemsByLevel({
       extractedText,
-      subjectName: unidad.materia?.nombre ?? 'Materia',
+      subjectName,
       unitName:    unidad.nombre,
       perLevel:    Math.max(1, parseInt(perLevel, 10) || 2),
       excludeQuestions,
+      esIngles:    esMateriaIngles(subjectName),
     });
 
     return NextResponse.json({ items });

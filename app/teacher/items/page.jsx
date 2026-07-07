@@ -20,7 +20,7 @@ function KPI({ etiqueta, valor, sub }) {
 
 // Tarjeta tipo flashcard: se voltea al tocarla (frente = pregunta, reverso =
 // respuesta de referencia + pista + estadísticas detalladas).
-function TarjetaItem({ item }) {
+function TarjetaItem({ item, onRegenerar }) {
   const [volteada, setVolteada] = useState(false);
   const logro = nivelLogro(item.precision);
   const sinDatos = item.totalRespuestas === 0;
@@ -52,7 +52,16 @@ function TarjetaItem({ item }) {
               </>
             )}
           </div>
-          <span className="flip-hint">Toca para ver la respuesta →</span>
+          <div className="flip-acciones">
+            <button
+              type="button"
+              className="btn-regenerar"
+              onClick={(e) => { e.stopPropagation(); onRegenerar(item); }}
+            >
+              ↻ Regenerar
+            </button>
+            <span className="flip-hint">Toca para ver la respuesta →</span>
+          </div>
         </div>
 
         {/* Reverso: respuesta + estadísticas */}
@@ -78,6 +87,169 @@ function TarjetaItem({ item }) {
   );
 }
 
+// Modal para regenerar un ítem: el docente indica cómo quiere cambiarlo antes
+// de que la IA lo reescriba (mismo nivel Bloom, distinto contenido).
+function ModalRegenerar({ item, onCerrar, onRegenerado }) {
+  const [ajuste,      setAjuste]      = useState('similar');
+  const [instruccion, setInstruccion] = useState('');
+  const [generando,   setGenerando]   = useState(false);
+  const [error,       setError]       = useState('');
+
+  const confirmar = async () => {
+    setGenerando(true);
+    setError('');
+    try {
+      const { data } = await api.post('/teacher/items/regenerate', {
+        itemId: item.id,
+        ajuste,
+        instruccion: instruccion.trim(),
+      });
+      onRegenerado(data.item);
+    } catch (e) {
+      setError(e.response?.data?.error ?? 'No se pudo regenerar el ítem. Intenta de nuevo.');
+      setGenerando(false);
+    }
+  };
+
+  const opciones = [
+    { valor: 'facil',   titulo: 'Muy difícil',      desc: 'Hazla más fácil y sencilla (mismo nivel).' },
+    { valor: 'dificil', titulo: 'Muy fácil',        desc: 'Hazla un poco más exigente (mismo nivel).' },
+    { valor: 'similar', titulo: 'Solo cámbiala',    desc: 'Otra pregunta con dificultad parecida.' },
+  ];
+
+  return (
+    <div className="regen-overlay" onClick={generando ? undefined : onCerrar}>
+      <div className="regen-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="regen-titulo">Regenerar ítem</h3>
+        <p className="regen-sub">
+          <BloomBadge nivel={item.nivel_bloom} /> La nueva pregunta mantendrá este nivel.
+        </p>
+        <p className="regen-pregunta-actual">{item.pregunta}</p>
+
+        <label className="etiqueta">¿Cómo quieres cambiarla?</label>
+        <div className="regen-opciones">
+          {opciones.map((o) => (
+            <button
+              key={o.valor}
+              type="button"
+              className={`regen-opcion ${ajuste === o.valor ? 'activa' : ''}`}
+              onClick={() => setAjuste(o.valor)}
+              disabled={generando}
+            >
+              <strong>{o.titulo}</strong>
+              <span>{o.desc}</span>
+            </button>
+          ))}
+        </div>
+
+        <label className="etiqueta" style={{ marginTop: '0.75rem' }}>
+          Indicación adicional (opcional)
+        </label>
+        <textarea
+          className="campo"
+          rows={2}
+          placeholder="Ej. enfócala en vocabulario de la familia, usa un ejemplo cotidiano..."
+          value={instruccion}
+          onChange={(e) => setInstruccion(e.target.value)}
+          disabled={generando}
+        />
+
+        {error && <p className="alerta-error" style={{ marginTop: '0.75rem' }}>{error}</p>}
+
+        <div className="regen-botones">
+          <button type="button" className="btn-secundario" onClick={onCerrar} disabled={generando}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primario" onClick={confirmar} disabled={generando}>
+            {generando ? 'Generando...' : 'Regenerar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal para crear ítems NUEVOS en un tema (cuando quedan pocos y los alumnos
+// ya avanzaron). Genera `perLevel` ítems por cada nivel Bloom usando el material
+// de estudio del tema como contexto, sin repetir los existentes.
+function ModalCrearItems({ materias, materiaInicial, onCerrar, onCreado }) {
+  const [materiaId, setMateriaId] = useState(materiaInicial || (materias[0]?.id ?? ''));
+  const [temas,     setTemas]     = useState([]);
+  const [temaId,    setTemaId]    = useState('');
+  const [perLevel,  setPerLevel]  = useState(2);
+  const [cargTemas, setCargTemas] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const [error,     setError]     = useState('');
+
+  useEffect(() => {
+    if (!materiaId) { setTemas([]); setTemaId(''); return; }
+    setCargTemas(true);
+    api.get(`/material/units?subjectId=${materiaId}`)
+      .then((r) => { setTemas(r.data); setTemaId(r.data[0]?.id ?? ''); })
+      .catch(() => { setTemas([]); setTemaId(''); })
+      .finally(() => setCargTemas(false));
+  }, [materiaId]);
+
+  const crear = async () => {
+    if (!temaId) { setError('Selecciona un tema.'); return; }
+    setGenerando(true);
+    setError('');
+    try {
+      const { data } = await api.post('/teacher/items/generate', { unitId: temaId, perLevel });
+      onCreado(data.count ?? 0, materiaId);
+    } catch (e) {
+      setError(e.response?.data?.error ?? 'No se pudieron crear los ítems. Intenta de nuevo.');
+      setGenerando(false);
+    }
+  };
+
+  return (
+    <div className="regen-overlay" onClick={generando ? undefined : onCerrar}>
+      <div className="regen-modal" onClick={(e) => e.stopPropagation()}>
+        <h3 className="regen-titulo">Crear más ítems</h3>
+        <p className="regen-sub">
+          Genera preguntas nuevas para un tema (una tanda por cada nivel Bloom), sin repetir las que ya existen.
+        </p>
+
+        <label className="etiqueta">Materia</label>
+        <select className="campo" value={materiaId} onChange={(e) => setMateriaId(e.target.value)} disabled={generando}>
+          {materias.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+        </select>
+
+        <label className="etiqueta" style={{ marginTop: '0.75rem' }}>Tema</label>
+        <select className="campo" value={temaId} onChange={(e) => setTemaId(e.target.value)} disabled={generando || cargTemas}>
+          {cargTemas
+            ? <option>Cargando temas...</option>
+            : temas.length === 0
+              ? <option value="">Esta materia no tiene temas</option>
+              : temas.map((t) => (
+                  <option key={t.id} value={t.id}>{t.nombre} ({t.items} ítem{t.items !== 1 ? 's' : ''})</option>
+                ))}
+        </select>
+
+        <label className="etiqueta" style={{ marginTop: '0.75rem' }}>Ítems por nivel Bloom</label>
+        <select className="campo" style={{ width: '8rem' }} value={perLevel} onChange={(e) => setPerLevel(Number(e.target.value))} disabled={generando}>
+          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <p className="kpi-sub" style={{ margin: '0.375rem 0 0' }}>
+          Se crearán {perLevel * 4} ítems en total (4 niveles × {perLevel}).
+        </p>
+
+        {error && <p className="alerta-error" style={{ marginTop: '0.75rem' }}>{error}</p>}
+
+        <div className="regen-botones">
+          <button type="button" className="btn-secundario" onClick={onCerrar} disabled={generando}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primario" onClick={crear} disabled={generando || !temaId}>
+            {generando ? 'Generando...' : 'Crear ítems'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContenidoItems() {
   useAuthGuard('docente');
   const router = useRouter();
@@ -88,7 +260,19 @@ function ContenidoItems() {
   const [items,     setItems]     = useState([]);
   const [busqueda,  setBusqueda]  = useState('');
   const [bloomFilt, setBloomFilt] = useState(''); // '' | '1'..'4'
+  const [temaFilt,  setTemaFilt]  = useState(''); // '' | unidadId
   const [cargando,  setCargando]  = useState(true);
+  const [regenItem, setRegenItem] = useState(null); // ítem en modal de regeneración
+  const [crearOpen, setCrearOpen] = useState(false); // modal de crear ítems nuevos
+  const [aviso,     setAviso]     = useState('');   // confirmación tras regenerar
+
+  // Reemplaza en la lista el ítem regenerado con su nuevo contenido.
+  const alRegenerar = useCallback((nuevo) => {
+    setItems((prev) => prev.map((it) => (it.id === nuevo.id ? { ...it, ...nuevo } : it)));
+    setRegenItem(null);
+    setAviso('Ítem regenerado correctamente.');
+    setTimeout(() => setAviso(''), 4000);
+  }, []);
 
   useEffect(() => {
     api.get('/material/subjects').then((r) => setMaterias(r.data)).catch(() => {});
@@ -106,14 +290,40 @@ function ContenidoItems() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  // Tras crear ítems nuevos: cierra el modal, avisa y recarga la lista (ajusta
+  // el filtro de materia si se crearon en otra distinta a la mostrada).
+  const alCrear = useCallback((count, materiaUsada) => {
+    setCrearOpen(false);
+    setAviso(`${count} ítem${count !== 1 ? 's' : ''} nuevo${count !== 1 ? 's' : ''} creado${count !== 1 ? 's' : ''}.`);
+    setTimeout(() => setAviso(''), 4000);
+    if (materiaUsada && materiaUsada !== materiaId) {
+      setTemaFilt('');
+      setMateriaId(materiaUsada);
+    } else {
+      cargar();
+    }
+  }, [materiaId, cargar]);
+
+  // Temas disponibles (únicos) según los ítems cargados de la materia actual.
+  const temas = useMemo(() => {
+    const mapa = new Map();
+    for (const it of items) {
+      if (it.unidadId && !mapa.has(it.unidadId)) mapa.set(it.unidadId, it.unidad);
+    }
+    return [...mapa.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? ''));
+  }, [items]);
+
   const filtrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
     return items.filter((it) => {
+      if (temaFilt && it.unidadId !== temaFilt) return false;
       if (bloomFilt && String(it.nivel_bloom) !== bloomFilt) return false;
       if (texto && !(`${it.pregunta} ${it.respuesta_ref} ${it.unidad}`.toLowerCase().includes(texto))) return false;
       return true;
     });
-  }, [items, busqueda, bloomFilt]);
+  }, [items, busqueda, bloomFilt, temaFilt]);
 
   // Resumen: aciertos global ponderado por número de respuestas.
   const resumen = useMemo(() => {
@@ -140,6 +350,9 @@ function ContenidoItems() {
           Volver al panel
         </button>
         <span className="titulo-pagina">Mis ítems</span>
+        <button onClick={() => setCrearOpen(true)} className="btn-primario" style={{ marginLeft: 'auto' }}>
+          + Crear más ítems
+        </button>
       </header>
 
       <main className="contenido-ancho" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -147,10 +360,19 @@ function ContenidoItems() {
         <div className="filtros-fila">
           <div className="filtro-campo">
             <label className="etiqueta">Materia</label>
-            <select className="campo campo-angosto" value={materiaId} onChange={(e) => setMateriaId(e.target.value)}>
+            <select className="campo campo-angosto" value={materiaId} onChange={(e) => { setMateriaId(e.target.value); setTemaFilt(''); }}>
               <option value="">Todas las materias</option>
               {materias.map((m) => (
                 <option key={m.id} value={m.id}>{m.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filtro-campo">
+            <label className="etiqueta">Tema</label>
+            <select className="campo" style={{ width: '13rem' }} value={temaFilt} onChange={(e) => setTemaFilt(e.target.value)}>
+              <option value="">Todos los temas</option>
+              {temas.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
             </select>
           </div>
@@ -198,11 +420,32 @@ function ContenidoItems() {
               Mostrando {filtrados.length} de {items.length} ítems · toca una tarjeta para voltearla
             </p>
             <div className="grid-flashcards">
-              {filtrados.map((it) => <TarjetaItem key={it.id} item={it} />)}
+              {filtrados.map((it) => (
+                <TarjetaItem key={it.id} item={it} onRegenerar={setRegenItem} />
+              ))}
             </div>
           </>
         )}
       </main>
+
+      {aviso && <div className="toast-exito">{aviso}</div>}
+
+      {regenItem && (
+        <ModalRegenerar
+          item={regenItem}
+          onCerrar={() => setRegenItem(null)}
+          onRegenerado={alRegenerar}
+        />
+      )}
+
+      {crearOpen && (
+        <ModalCrearItems
+          materias={materias}
+          materiaInicial={materiaId}
+          onCerrar={() => setCrearOpen(false)}
+          onCreado={alCrear}
+        />
+      )}
     </div>
   );
 }

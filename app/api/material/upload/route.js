@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
 import { generateItemsByLevel, generateTheory, MAX_CONTEXT_CHARS } from '@/lib/llm';
+import { esMateriaIngles } from '@/lib/idioma';
 
 // Mínimo de ítems por nivel Bloom, para no dejar niveles con muy pocos ítems.
 const MIN_POR_NIVEL = 3;
@@ -54,7 +55,10 @@ async function handler(request) {
 
     // Generar ítems distribuidos en los 4 niveles Bloom (crítico, con reintentos)
     // y luego la teoría (no crítica). Secuencial para no saturar Gemini (503).
-    const items = await generateItemsByLevel({ extractedText, subjectName, unitName, perLevel });
+    const items = await generateItemsByLevel({
+      extractedText, subjectName, unitName, perLevel,
+      esIngles: esMateriaIngles(subjectName),
+    });
 
     let theory = null;
     try {
