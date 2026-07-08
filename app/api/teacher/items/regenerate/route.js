@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
 import { regenerateItem } from '@/lib/llm';
 import { computeReferenceEmbedding } from '@/lib/nlp';
-import { esMateriaIngles } from '@/lib/idioma';
+import { esMateriaIngles, esMateriaMatematicas } from '@/lib/idioma';
 
 // Regenera UN ítem individual del docente manteniendo su nivel Bloom pero
 // cambiando la pregunta, la respuesta de referencia y la pista. Se le pasa a la
@@ -75,6 +75,7 @@ async function handler(request, context, user) {
       ajuste,
       instruccion,
       esIngles:        esMateriaIngles(subjectName),
+      esMatematicas:   esMateriaMatematicas(subjectName),
       excludeQuestions,
     });
 

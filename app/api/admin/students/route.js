@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
-import { CLAVE_POR_DEFECTO, hashClave, siguienteCodigoAnonimo } from '@/lib/usuarios';
+import { CLAVE_POR_DEFECTO, hashClave, siguienteCodigoAnonimo, inscribirEnMateria } from '@/lib/usuarios';
 
 // ── GET: lista de estudiantes ──────────────────────────────────
 async function listar(request, context, user) {
@@ -73,16 +73,14 @@ async function crear(request, context, user) {
 
     if (error) throw error;
 
-    // Inscribir automáticamente en todas las materias activas para que el
-    // alumno vea contenido desde el inicio.
+    // Inscribir automáticamente en todas las materias activas y ASIGNARLE sus
+    // ítems (item_fsrs), para que el alumno tenga repasos desde el inicio.
     const { data: materias } = await supabase
       .from('materia')
       .select('id_materia')
       .eq('activa', true);
-    if (materias?.length) {
-      await supabase.from('inscripcion').insert(
-        materias.map((m) => ({ id_estudiante: nuevo.id_usuario, id_materia: m.id_materia }))
-      );
+    for (const m of materias ?? []) {
+      await inscribirEnMateria(nuevo.id_usuario, m.id_materia);
     }
 
     return NextResponse.json(

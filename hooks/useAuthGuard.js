@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { rutaPorRol } from '@/lib/rutas';
 
 export function useAuthGuard(requiredRole = null) {
   const { token, user, hasHydrated } = useAuthStore();
@@ -16,7 +17,7 @@ export function useAuthGuard(requiredRole = null) {
       return;
     }
     if (requiredRole && user.role !== requiredRole) {
-      router.replace(user.role === 'docente' ? '/teacher' : '/student');
+      router.replace(rutaPorRol(user.role));
     }
   }, [hasHydrated, token, user, requiredRole, router]);
 

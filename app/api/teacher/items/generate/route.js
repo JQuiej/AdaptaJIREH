@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { requireFields, handleError } from '@/lib/validate';
 import { generateItemsByLevel } from '@/lib/llm';
 import { computeReferenceEmbedding } from '@/lib/nlp';
-import { esMateriaIngles } from '@/lib/idioma';
+import { esMateriaIngles, esMateriaMatematicas } from '@/lib/idioma';
 
 // Crea ítems NUEVOS para un tema desde «Mis ítems», útil cuando quedan pocos y
 // los alumnos ya avanzaron. Usa el material de estudio del tema (teoría) como
@@ -63,6 +63,7 @@ async function handler(request, context, user) {
       perLevel,
       excludeQuestions,
       esIngles: esMateriaIngles(subjectName),
+      esMatematicas: esMateriaMatematicas(subjectName),
     });
 
     if (!generados.length) {

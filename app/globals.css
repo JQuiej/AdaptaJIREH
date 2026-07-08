@@ -242,6 +242,54 @@ input, select, textarea { font-family: inherit; }
 
 /* ── Panel de administración de usuarios ──────────────────── */
 .admin-aviso { border: 1px solid var(--primario-borde); background: var(--primario-bg); }
+/* Pestañas estudiante/docente en el alta de usuario. */
+.admin-tabs { display: flex; gap: 0.5rem; }
+/* Selector de materias (chips con checkbox). */
+.admin-materias-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.admin-materia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio-full);
+  font-size: 0.8125rem;
+  color: var(--gris-700);
+  cursor: pointer;
+  user-select: none;
+}
+.admin-materia-chip.activa {
+  border-color: var(--primario);
+  background: var(--primario-bg);
+  color: var(--primario);
+  font-weight: 600;
+}
+.admin-materia-chip input { accent-color: var(--primario); }
+/* Modal genérico (gestión de materias del estudiante). */
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.modal-caja {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 30rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
 .admin-credenciales {
   display: flex;
   flex-wrap: wrap;
@@ -953,6 +1001,58 @@ input, select, textarea { font-family: inherit; }
   line-height: 1.6;
   width: 100%;
   white-space: pre-line; /* respeta los saltos de línea de preguntas de opción */
+}
+/* Aviso de modo sin conexión (parte inferior, sobre todo lo demás). */
+.banner-offline {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(92vw, 480px);
+  padding: 0.625rem 1rem;
+  background: var(--gris-900);
+  color: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  border-radius: var(--radio-full);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Incisos (opciones a/b/c) de una pregunta de opción múltiple: cada uno en su
+   propia fila, con la letra destacada, para que sean fáciles de leer. */
+.flashcard-opciones {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.flashcard-opcion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--gris-50);
+  border: 1px solid var(--gris-200);
+  border-radius: 0.625rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--gris-900);
+}
+.flashcard-opcion-letra {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--primario);
+  text-transform: uppercase;
+}
+.flashcard-opcion-texto {
+  flex: 1;
 }
 .btn-traducir {
   align-self: flex-start;

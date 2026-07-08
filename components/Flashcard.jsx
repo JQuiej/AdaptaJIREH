@@ -4,6 +4,29 @@ import BloomBadge from './BloomBadge';
 import SemanticBar from './SemanticBar';
 import MathField from './MathField';
 
+// Separa el enunciado de las opciones (incisos) de una pregunta de opción
+// múltiple. Las opciones vienen como líneas del tipo "a) ...", "b. ...",
+// "1) ...". Devuelve el enunciado limpio y un arreglo de { letra, texto } para
+// poder mostrarlas como filas legibles en vez de un bloque de texto corrido.
+const RE_INCISO = /^\s*([a-hA-H1-8])\s*[).\-–]\s+(.*)$/;
+
+function parsearPregunta(pregunta) {
+  const lineas = String(pregunta ?? '').split('\n');
+  const enunciado = [];
+  const opciones = [];
+  for (const linea of lineas) {
+    const m = linea.match(RE_INCISO);
+    // Solo tratamos una línea como inciso si ya empezaron las opciones o si el
+    // enunciado ya tiene contenido (evita partir un enunciado que empiece raro).
+    if (m && (opciones.length > 0 || enunciado.length > 0)) {
+      opciones.push({ letra: m[1].toLowerCase(), texto: m[2].trim() });
+    } else if (linea.trim()) {
+      enunciado.push(linea.trim());
+    }
+  }
+  return { enunciado: enunciado.join('\n'), opciones };
+}
+
 export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   const [respuesta, setRespuesta] = useState('');
   const [resultado, setResultado] = useState(null);
@@ -21,6 +44,9 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
 
   // En Matemáticas se muestra una paleta de símbolos para escribir ecuaciones.
   const esMatematicas = /matem[aá]tic/i.test(item.unidad?.materia?.nombre ?? '');
+
+  // Separar enunciado e incisos para mostrarlos de forma más legible.
+  const { enunciado, opciones } = parsearPregunta(item.pregunta);
 
   async function handleEnviar(e) {
     e.preventDefault();
@@ -56,7 +82,17 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
     <div className="tarjeta tarjeta-flashcard">
       <div className="flashcard-cabecera">
         <BloomBadge nivel={item.nivel_bloom} />
-        <p className="flashcard-pregunta">{item.pregunta}</p>
+        <p className="flashcard-pregunta">{enunciado}</p>
+        {opciones.length > 0 && (
+          <ul className="flashcard-opciones">
+            {opciones.map((op) => (
+              <li key={op.letra} className="flashcard-opcion">
+                <span className="flashcard-opcion-letra">{op.letra})</span>
+                <span className="flashcard-opcion-texto">{op.texto}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {traduccion && (
           <>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useAuthStore } from '@/store/authStore';
+import { rutaPorRol } from '@/lib/rutas';
 import api from '@/services/api';
 
 export default function PaginaCambiarClave() {
@@ -20,7 +21,7 @@ export default function PaginaCambiarClave() {
   // opción de mantenerla. Si entró voluntariamente, es solo cambio de clave.
   const porDefecto = user?.mustChangePassword;
 
-  const destino = () => (user?.role === 'docente' ? '/teacher' : '/student');
+  const destino = () => rutaPorRol(user?.role);
 
   async function cambiar(e) {
     e.preventDefault();

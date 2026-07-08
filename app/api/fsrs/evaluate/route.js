@@ -143,6 +143,10 @@ async function handler(request, context, user) {
       totalItemsInSession,
       onTime,
       usedHint,
+      // DV interna (Retención Cognitiva): solo desde el 2.º repaso; en el
+      // primero no hubo tiempo para olvidar (previousR = 1 por convención).
+      retencionDecaida: fsrs?.ultima_revision ? Math.round(previousR * 10000) / 10000 : null,
+      diasDesdeRepaso:  fsrs?.ultima_revision ? Math.round(diasTranscurridos * 100) / 100 : null,
     });
 
     // ── Incrementar ítems completados en la sesión ────────────

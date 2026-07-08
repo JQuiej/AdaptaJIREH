@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { rutaPorRol } from '@/lib/rutas';
 import api from '@/services/api';
 
 export default function PaginaInicioSesion() {
@@ -24,7 +25,7 @@ export default function PaginaInicioSesion() {
       if (data.user.mustChangePassword) {
         router.push('/cambiar-clave');
       } else {
-        router.push(data.user.role === 'docente' ? '/teacher' : '/student');
+        router.push(rutaPorRol(data.user.role));
       }
     } catch (err) {
       setError(err.response?.data?.error ?? 'Credenciales incorrectas. Verifica tus datos.');

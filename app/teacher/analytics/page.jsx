@@ -204,7 +204,7 @@ function ContenidoAnalytics() {
             <table className="tabla">
               <thead>
                 <tr>
-                  {['Estudiante','Grado','D','S','IRE','SST','TR','PA','AR','CE','DD (Bloom)','CR','Fecha'].map((col) => (
+                  {['Estudiante','Grado','D','S','IRE','SST','TR','PA','AR','CE','DD (Bloom)','LR (s)','Fecha'].map((col) => (
                     <th key={col} className="tabla-th">{col}</th>
                   ))}
                 </tr>
@@ -229,7 +229,10 @@ function ContenidoAnalytics() {
                     </td>
                     <td className="tabla-td">{r.CE ?? '—'}</td>
                     <td className="tabla-td">{r.DD ?? r.item?.nivel_bloom ?? '—'}</td>
-                    <td className="tabla-td">{r.CR ?? '—'}</td>
+                    {/* LR (Latencia de Respuesta): tiempo en responder, en segundos */}
+                    <td className="tabla-td">
+                      {r.tiempo_respuesta_ms != null ? (r.tiempo_respuesta_ms / 1000).toFixed(1) : '—'}
+                    </td>
                     <td className="tabla-td-fecha">
                       {r.timestamp_resp
                         ? new Date(r.timestamp_resp).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })

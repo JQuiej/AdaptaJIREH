@@ -1,6 +1,6 @@
 // Manifest PWA. Next.js lo expone en /manifest.webmanifest automáticamente.
-// Prep para instalar la app más adelante (falta el service worker para que sea
-// 100% PWA offline; eso se añade cuando se decida activarla).
+// El service worker (public/sw.js) añade push + soporte offline: la app se
+// puede instalar y permite leer apuntes y ver el dashboard sin conexión.
 export default function manifest() {
   return {
     name: 'AdaptaJIREH',

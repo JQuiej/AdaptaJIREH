@@ -1,4 +1,5 @@
 import './globals.css';
+import ModoOffline from '@/components/ModoOffline';
 
 export const metadata = {
   title: 'AdaptaJIREH',
@@ -18,7 +19,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <ModoOffline />
+        {children}
+      </body>
     </html>
   );
 }

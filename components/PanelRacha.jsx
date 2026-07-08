@@ -107,7 +107,11 @@ export default function PanelRacha() {
     return <div className="esqueleto-tarjeta" />;
   }
 
-  const pct = racha.goal > 0 ? Math.min(100, Math.round((racha.todayCount / racha.goal) * 100)) : 0;
+  const pct = racha.todayMet
+    ? 100 // sesión cumplida o día de descanso: barra llena
+    : racha.goal > 0
+      ? Math.min(100, Math.round((racha.todayCount / racha.goal) * 100))
+      : 0;
 
   return (
     <section className="tarjeta tarjeta-racha">
@@ -125,9 +129,11 @@ export default function PanelRacha() {
       {/* Progreso de hoy */}
       <div className="racha-progreso">
         <div className="racha-progreso-texto">
-          {racha.todayMet
-            ? '✓ ¡Sesión de hoy completada! Tu racha está a salvo.'
-            : `Hoy llevas ${racha.todayCount} de ${racha.goal} ítems para mantener tu racha.`}
+          {racha.goal === 0
+            ? '✓ Hoy no tienes nada que repasar. Tu racha está a salvo.'
+            : racha.todayMet
+              ? '✓ ¡Sesión de hoy completada! Tu racha está a salvo.'
+              : `Hoy llevas ${racha.todayCount} de ${racha.goal} ítems para mantener tu racha.`}
         </div>
         <div className="barra-sesion-fondo" style={{ borderRadius: 'var(--radio-full)' }}>
           <div

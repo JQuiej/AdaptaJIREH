@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useAuthStore } from '@/store/authStore';
 import Brand from '@/components/Brand';
-import api from '@/services/api';
+import api, { limpiarCacheOffline } from '@/services/api';
 
 export default function PanelDocente() {
   const { user }      = useAuthGuard('docente');
@@ -31,6 +31,7 @@ export default function PanelDocente() {
 
   async function cerrarSesion() {
     await api.post('/auth/logout').catch(() => {});
+    limpiarCacheOffline(); // datos personales cacheados para offline
     clearAuth();
     router.push('/login');
   }

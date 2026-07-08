@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
 import { generateItemsByLevel, generateTheory, MAX_CONTEXT_CHARS } from '@/lib/llm';
-import { esMateriaIngles } from '@/lib/idioma';
+import { esMateriaIngles, esMateriaMatematicas } from '@/lib/idioma';
 
 // Mínimo de ítems por nivel Bloom, para no dejar niveles con muy pocos ítems.
 const MIN_POR_NIVEL = 3;
@@ -58,11 +58,16 @@ async function handler(request) {
     const items = await generateItemsByLevel({
       extractedText, subjectName, unitName, perLevel,
       esIngles: esMateriaIngles(subjectName),
+      esMatematicas: esMateriaMatematicas(subjectName),
     });
 
     let theory = null;
     try {
-      theory = await generateTheory({ extractedText, subjectName, unitName });
+      theory = await generateTheory({
+        extractedText, subjectName, unitName,
+        preguntas: items,
+        esIngles: esMateriaIngles(subjectName),
+      });
     } catch (e) {
       console.warn('[upload] teoría no generada (no crítico):', e.message);
     }

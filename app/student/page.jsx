@@ -8,7 +8,7 @@ import OfflineBanner from '@/components/OfflineBanner';
 import ForecastCalendar from '@/components/ForecastCalendar';
 import PanelRacha from '@/components/PanelRacha';
 import Brand from '@/components/Brand';
-import api from '@/services/api';
+import api, { limpiarCacheOffline } from '@/services/api';
 
 // Icono minimalista de estudio (libro abierto de trazo simple).
 function IconoAprender() {
@@ -80,6 +80,7 @@ export default function PanelEstudiante() {
 
   async function cerrarSesion() {
     await api.post('/auth/logout').catch(() => {});
+    limpiarCacheOffline(); // datos personales cacheados para offline
     clearAuth();
     router.push('/login');
   }

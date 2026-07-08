@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
 import { generateTheory } from '@/lib/llm';
+import { esMateriaIngles } from '@/lib/idioma';
 
 // Genera (o regenera) SOLO los apuntes de teoría de un tema a partir de un PDF,
 // sin crear ítems nuevos. Reemplaza la teoría existente del tema. Útil cuando un
@@ -40,10 +41,20 @@ async function handler(request) {
       );
     }
 
+    // Preguntas ya existentes del tema, para que la teoría explique sus conceptos.
+    const { data: itemsTema } = await supabase
+      .from('item')
+      .select('pregunta')
+      .eq('id_unidad', unitId);
+    const preguntas = (itemsTema ?? []).map((i) => i.pregunta).filter(Boolean);
+
+    const subjectName = unidad.materia?.nombre ?? 'Materia';
     const theory = await generateTheory({
       extractedText,
-      subjectName: unidad.materia?.nombre ?? 'Materia',
+      subjectName,
       unitName:    unidad.nombre,
+      preguntas,
+      esIngles:    esMateriaIngles(subjectName),
     });
 
     if (!theory || (!theory.resumen && !(theory.secciones?.length))) {
