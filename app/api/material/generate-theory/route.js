@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
-import { generateTheory } from '@/lib/llm';
+import { checkTopicRelevance, generateTheory } from '@/lib/llm';
 import { esMateriaIngles } from '@/lib/idioma';
 
 // Genera (o regenera) SOLO los apuntes de teoría de un tema a partir de un PDF,
@@ -49,6 +49,19 @@ async function handler(request) {
     const preguntas = (itemsTema ?? []).map((i) => i.pregunta).filter(Boolean);
 
     const subjectName = unidad.materia?.nombre ?? 'Materia';
+
+    // Verificar que el PDF corresponda al tema (falla en modo abierto).
+    const relevancia = await checkTopicRelevance({ extractedText, subjectName, unitName: unidad.nombre });
+    if (!relevancia.relacionado) {
+      return NextResponse.json(
+        {
+          error: `El contenido del PDF no parece estar relacionado con el tema «${unidad.nombre}» de ${subjectName}, por lo que no se puede generar la teoría. Verifica que subiste el archivo correcto.${relevancia.motivo ? ` (${relevancia.motivo})` : ''}`,
+          code: 'UNRELATED_CONTENT',
+        },
+        { status: 422 }
+      );
+    }
+
     const theory = await generateTheory({
       extractedText,
       subjectName,

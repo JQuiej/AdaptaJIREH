@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import api from '@/services/api';
@@ -95,6 +95,9 @@ export default function PaginaAprender() {
   const [temaActivo, setTemaActivo] = useState(null);
   const [idxCarta,   setIdxCarta]   = useState(0);
   const [volteada,   setVolteada]   = useState(false);
+  // Contenedor del texto del dorso: se reinicia su scroll al cambiar de carta
+  // para que la nueva empiece desde arriba (antes conservaba el scroll anterior).
+  const textoRef = useRef(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -110,6 +113,11 @@ export default function PaginaAprender() {
     () => (temaActivo ? construirCartas(temaActivo) : []),
     [temaActivo]
   );
+
+  // Al cambiar de carta, llevar el scroll del texto al inicio.
+  useEffect(() => {
+    if (textoRef.current) textoRef.current.scrollTop = 0;
+  }, [idxCarta]);
 
   function abrirTema(tema) {
     setTemaActivo(tema);
@@ -178,7 +186,7 @@ export default function PaginaAprender() {
               {/* Dorso: el contenido */}
               <div className="carta-cara carta-dorso">
                 <p className="carta-dorso-titulo">{carta.titulo}</p>
-                <div className="carta-texto-estudio">
+                <div className="carta-texto-estudio" ref={textoRef}>
                   <TextoEnriquecido texto={carta.texto} />
                 </div>
               </div>

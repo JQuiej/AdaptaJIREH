@@ -901,6 +901,8 @@ input, select, textarea { font-family: inherit; }
 }
 .racha-progreso { display: flex; flex-direction: column; gap: 0.5rem; }
 .racha-progreso-texto { font-size: 0.875rem; color: var(--gris-700); }
+/* Nota sutil: la meta de racha es adaptativa (puede subir o bajar). */
+.racha-nota-meta { font-size: 0.75rem; color: var(--gris-400); margin-top: 0.5rem; line-height: 1.45; }
 .racha-recordatorios {
   display: flex;
   flex-direction: column;
@@ -1418,6 +1420,8 @@ input, select, textarea { font-family: inherit; }
   padding: 0.5rem 0.75rem;
   line-height: 1.5;
 }
+/* Aviso en la sesión diaria: recuerda al alumno justificar sus respuestas. */
+.flashcard-aviso-justificar { margin: 0 0 0.875rem; }
 
 /* Recuperación: generar solo la teoría de un tema */
 .bloque-solo-teoria {
@@ -1444,6 +1448,12 @@ input, select, textarea { font-family: inherit; }
     text-align: center;
     padding-inline: 0.625rem;
     font-size: 0.8125rem;
+  }
+  /* En móvil el badge Bloom (nowrap) apretaba la descripción; se apila arriba
+     y el texto ocupa el ancho completo debajo. */
+  .lista-niveles-bloom li {
+    flex-direction: column;
+    gap: 0.25rem;
   }
 }
 .encabezado-izquierda { display: flex; align-items: center; gap: 0.5rem; }

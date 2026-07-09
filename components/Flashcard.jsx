@@ -111,6 +111,10 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
 
       {!resultado ? (
         <form onSubmit={handleEnviar} className="formulario-respuesta">
+          <p className="alerta-aviso flashcard-aviso-justificar">
+            Explica o justifica <strong>todas</strong> tus respuestas: no basta con
+            responder, cuenta también <em>por qué</em> lo piensas así.
+          </p>
           {esMatematicas ? (
             <MathField
               className="campo campo-respuesta"

@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { extractTextFromPDF } from '@/lib/pdf';
-import { generateItemsByLevel, generateTheory, MAX_CONTEXT_CHARS } from '@/lib/llm';
+import { checkTopicRelevance, generateItemsByLevel, generateTheory, MAX_CONTEXT_CHARS } from '@/lib/llm';
 import { esMateriaIngles, esMateriaMatematicas } from '@/lib/idioma';
 
 // Mínimo de ítems por nivel Bloom, para no dejar niveles con muy pocos ítems.
@@ -52,6 +52,20 @@ async function handler(request) {
 
     const subjectName = unidad.materia?.nombre ?? 'Materia';
     const unitName    = unidad.nombre;
+
+    // Verificar que el PDF corresponda al tema antes de gastar la generación:
+    // si el material no tiene relación, se avisa al docente en vez de generar
+    // ítems sin sentido. (Falla en modo abierto: no bloquea si el chequeo falla.)
+    const relevancia = await checkTopicRelevance({ extractedText, subjectName, unitName });
+    if (!relevancia.relacionado) {
+      return NextResponse.json(
+        {
+          error: `El contenido del PDF no parece estar relacionado con el tema «${unitName}» de ${subjectName}, por lo que no se pueden generar ítems. Verifica que subiste el archivo correcto.${relevancia.motivo ? ` (${relevancia.motivo})` : ''}`,
+          code: 'UNRELATED_CONTENT',
+        },
+        { status: 422 }
+      );
+    }
 
     // Generar ítems distribuidos en los 4 niveles Bloom (crítico, con reintentos)
     // y luego la teoría (no crítica). Secuencial para no saturar Gemini (503).

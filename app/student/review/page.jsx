@@ -107,7 +107,7 @@ function ContenidoRepaso() {
           <h2 className="titulo-completado">Sesión completada</h2>
           <p className="subtitulo-completado">
             {cola.length > 0
-              ? `Respondiste ${cola.length} pregunta${cola.length !== 1 ? 's' : ''} correctamente.`
+              ? `Respondiste ${cola.length} pregunta${cola.length !== 1 ? 's' : ''} en esta sesión.`
               : 'No hay preguntas pendientes para esta materia hoy.'}
           </p>
           <button className="btn-primario btn-ancho" onClick={() => router.push('/student')}>

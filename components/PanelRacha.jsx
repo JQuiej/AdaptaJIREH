@@ -142,6 +142,12 @@ export default function PanelRacha() {
                      background: racha.todayMet ? 'var(--exito-relleno)' : 'var(--primario)' }}
           />
         </div>
+        {racha.goal > 0 && !racha.todayMet && (
+          <p className="racha-nota-meta">
+            Esta meta se adapta a tu ritmo: puede subir o bajar según cómo vayas
+            respondiendo.
+          </p>
+        )}
       </div>
 
       {/* Recordatorios */}
@@ -152,7 +158,7 @@ export default function PanelRacha() {
             checked={config.activo}
             onChange={(e) => guardarConfig({ activo: e.target.checked })}
           />
-          <span>Recordatorio diario (1:00 pm)</span>
+          <span>Recordatorio diario (1:00 y 7:00 pm)</span>
         </label>
 
         {!soportado ? (
