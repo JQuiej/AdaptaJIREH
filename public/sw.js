@@ -131,10 +131,13 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'AdaptaJIREH';
   const options = {
     body: data.body || 'Tienes repasos pendientes para hoy.',
-    // Icono de la notificación: el logo del colegio (sin imagen grande en el
-    // cuerpo). Antes se usaba un ícono de libro azul con brillo.
-    icon: '/logo-jireh.png',
-    badge: '/badge-96.png',
+    // Icono de la notificación: el escudo del colegio en versión CUADRADA sobre
+    // fondo blanco (icon-192.png). El logo-jireh.png original es muy grande y no
+    // cuadrado, así que algunos móviles no lo cargaban y mostraban la inicial de
+    // la app ("A") como respaldo. Se omite `badge` a propósito para no mostrar el
+    // ícono monocromático extra (la campana/libro) y que la notificación se vea
+    // más limpia con un solo ícono: el del colegio.
+    icon: '/icon-192.png',
     data: { url: data.url || '/student' },
     vibrate: [80, 40, 80],
   };
