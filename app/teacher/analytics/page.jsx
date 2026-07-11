@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import {
@@ -13,6 +13,25 @@ const PERIODOS = [
   { valor: '30d', etiqueta: 'Últimos 30 días' },
   { valor: '60d', etiqueta: 'Últimos 60 días' },
 ];
+
+// Agrega las respuestas por día para el gráfico de un estudiante individual
+// (mismo formato que devuelve el RPC get_retention_chart: fecha, promedio_pa,
+// promedio_ar), calculado en el cliente para no tocar el SQL.
+function graficoDeSesiones(rows) {
+  const porDia = new Map();
+  for (const r of rows) {
+    if (!r.timestamp_resp) continue;
+    const fecha = new Date(r.timestamp_resp).toISOString().split('T')[0];
+    if (!porDia.has(fecha)) porDia.set(fecha, { fecha, pa: [], ar: [] });
+    const d = porDia.get(fecha);
+    if (r.PA != null) d.pa.push(r.PA);
+    if (r.AR != null) d.ar.push(r.AR);
+  }
+  const media = (arr) => (arr.length ? arr.reduce((a, v) => a + v, 0) / arr.length : null);
+  return [...porDia.values()]
+    .map((d) => ({ fecha: d.fecha, promedio_pa: media(d.pa), promedio_ar: media(d.ar) }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
 
 function KPI({ etiqueta, valor, sub }) {
   return (
@@ -31,6 +50,7 @@ function ContenidoAnalytics() {
 
   const [materias,  setMaterias]  = useState([]);
   const [materiaId, setMateriaId] = useState(params.get('subjectId') ?? '');
+  const [estudianteId, setEstudianteId] = useState('');
   const [periodo,   setPeriodo]   = useState('30d');
   const [grafico,   setGrafico]   = useState([]);
   const [sesiones,  setSesiones]  = useState([]);
@@ -58,16 +78,66 @@ function ContenidoAnalytics() {
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
 
-  function exportarCSV() {
-    const q   = new URLSearchParams({ period: periodo, ...(materiaId ? { subjectId: materiaId } : {}) }).toString();
-    const tok = JSON.parse(localStorage.getItem('adaptajireh-auth') ?? '{}')?.state?.token ?? '';
-    window.open(`/api/export/csv?${q}&token=${tok}`, '_blank');
+  // Al cambiar de materia o periodo, se limpia el estudiante seleccionado
+  // (podría no tener datos en el nuevo contexto).
+  useEffect(() => { setEstudianteId(''); }, [materiaId, periodo]);
+
+  // Lista de estudiantes con actividad en el contexto actual (materia + periodo),
+  // derivada de las respuestas cargadas — no requiere endpoint aparte.
+  const estudiantes = useMemo(() => {
+    const map = new Map();
+    for (const r of sesiones) {
+      const e = r.estudiante;
+      if (e?.id_usuario && !map.has(e.id_usuario)) map.set(e.id_usuario, e);
+    }
+    return [...map.values()].sort((a, b) =>
+      (a.nombre_usuario ?? '').localeCompare(b.nombre_usuario ?? ''));
+  }, [sesiones]);
+
+  // Respuestas mostradas: todas, o solo las del estudiante seleccionado.
+  const sesionesFiltradas = estudianteId
+    ? sesiones.filter((r) => r.estudiante?.id_usuario === estudianteId)
+    : sesiones;
+
+  // Gráfico: por estudiante se calcula en el cliente; en la vista general se usa
+  // el del RPC (agrega todas las respuestas del servidor, sin el tope de 500).
+  const datosGrafico = estudianteId ? graficoDeSesiones(sesionesFiltradas) : grafico;
+
+  const estudianteSel = estudiantes.find((e) => e.id_usuario === estudianteId) ?? null;
+
+  async function exportarCSV() {
+    const q = new URLSearchParams({ period: periodo, ...(materiaId ? { subjectId: materiaId } : {}) }).toString();
+    try {
+      // Descarga con el header Authorization (vía interceptor de axios). No se
+      // usa window.open porque esa navegación no envía el token y el endpoint
+      // respondía "Token no proporcionado".
+      const res = await api.get(`/export/csv?${q}`, { responseType: 'blob' });
+
+      const cd = res.headers['content-disposition'] ?? '';
+      const m  = /filename="?([^"]+)"?/.exec(cd);
+      const nombre = m?.[1] ?? `adaptajireh_${Date.now()}.csv`;
+
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        alert('No hay datos para exportar en el periodo seleccionado.');
+      } else {
+        alert('No se pudo exportar. Intenta de nuevo.');
+      }
+    }
   }
 
   // Promedio de una variable en [0,1] → porcentaje (ignora valores nulos,
   // p. ej. TR solo existe en ítems de transferencia).
   function promedioPct(campo) {
-    const vals = sesiones.map((r) => r[campo]).filter((v) => v != null);
+    const vals = sesionesFiltradas.map((r) => r[campo]).filter((v) => v != null);
     return vals.length
       ? (vals.reduce((a, v) => a + v, 0) / vals.length * 100).toFixed(0)
       : '—';
@@ -77,7 +147,7 @@ function ContenidoAnalytics() {
   const avgPA  = promedioPct('PA');
   const avgAR  = promedioPct('AR');
   const avgTR  = promedioPct('TR');
-  const estUnicos = new Set(sesiones.map((r) => r.estudiante?.nombre_usuario)).size || '—';
+  const estUnicos = new Set(sesionesFiltradas.map((r) => r.estudiante?.nombre_usuario)).size || '—';
 
   // Colorea un valor [0,1] según umbrales de logro (alto / medio / bajo).
   function claseLogro(val) {
@@ -110,6 +180,22 @@ function ContenidoAnalytics() {
             </select>
           </div>
           <div className="filtro-campo">
+            <label className="etiqueta">Estudiante</label>
+            <select
+              className="campo campo-angosto"
+              value={estudianteId}
+              onChange={(e) => setEstudianteId(e.target.value)}
+              disabled={estudiantes.length === 0}
+            >
+              <option value="">Todos los estudiantes</option>
+              {estudiantes.map((e) => (
+                <option key={e.id_usuario} value={e.id_usuario}>
+                  {e.nombre_usuario}{e.grado ? ` — ${e.grado}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filtro-campo">
             <label className="etiqueta">Periodo</label>
             <select className="campo" style={{ width: '11rem' }} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
               {PERIODOS.map((p) => (
@@ -118,6 +204,13 @@ function ContenidoAnalytics() {
             </select>
           </div>
         </div>
+
+        {estudianteSel && (
+          <p className="titulo-seccion" style={{ marginBottom: 0 }}>
+            Progreso individual de <strong>{estudianteSel.nombre_usuario}</strong>
+            {estudianteSel.grado ? ` (${estudianteSel.grado})` : ''}
+          </p>
+        )}
 
         {/* KPIs */}
         <div className="cuadricula-kpis-4">
@@ -151,11 +244,11 @@ function ContenidoAnalytics() {
           <p className="titulo-seccion">Evolución de precisión (PA) y adherencia (AR)</p>
           {cargando ? (
             <div className="grafico-vacio">Cargando datos...</div>
-          ) : grafico.length === 0 ? (
+          ) : datosGrafico.length === 0 ? (
             <div className="grafico-vacio">Sin datos para el periodo seleccionado</div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={grafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <LineChart data={datosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis
@@ -193,9 +286,9 @@ function ContenidoAnalytics() {
         <section>
           <div className="tabla-info-fila">
             <p className="titulo-seccion" style={{ marginBottom: 0 }}>
-              Variables de investigación por sesión
-              {sesiones.length > 50 && (
-                <span className="tabla-nota"> (mostrando 50 de {sesiones.length})</span>
+              Variables de investigación por ítem (cada fila es una respuesta)
+              {sesionesFiltradas.length > 50 && (
+                <span className="tabla-nota"> (mostrando 50 de {sesionesFiltradas.length})</span>
               )}
             </p>
           </div>
@@ -210,7 +303,7 @@ function ContenidoAnalytics() {
                 </tr>
               </thead>
               <tbody>
-                {sesiones.slice(0, 50).map((r) => (
+                {sesionesFiltradas.slice(0, 50).map((r) => (
                   <tr key={r.id_respuesta}>
                     <td className="tabla-td-nombre">{r.estudiante?.nombre_usuario ?? '—'}</td>
                     <td className="tabla-td-gris">{r.estudiante?.grado ?? '—'}</td>
@@ -240,7 +333,7 @@ function ContenidoAnalytics() {
                     </td>
                   </tr>
                 ))}
-                {sesiones.length === 0 && (
+                {sesionesFiltradas.length === 0 && (
                   <tr className="tabla-vacia">
                     <td colSpan={13}>Sin sesiones registradas en este periodo</td>
                   </tr>

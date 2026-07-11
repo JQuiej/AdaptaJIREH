@@ -13,8 +13,28 @@ export default function ModoOffline() {
   const [sinConexion, setSinConexion] = useState(false);
 
   useEffect(() => {
+    // En DESARROLLO el service worker cachea los bundles de Next (cuyos nombres
+    // no son estables como en producción) y termina sirviendo JS viejo → causa
+    // errores de hidratación y de caché al editar el código. Por eso en dev NO
+    // se registra: se desregistra el que hubiera y se limpian sus cachés para
+    // trabajar siempre con el código fresco. En producción sí funciona la PWA.
+    const esDesarrollo =
+      process.env.NODE_ENV === 'development' ||
+      ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => { /* no crítico */ });
+      if (esDesarrollo) {
+        navigator.serviceWorker.getRegistrations()
+          .then((regs) => regs.forEach((r) => r.unregister()))
+          .catch(() => {});
+        window.caches?.keys?.()
+          .then((keys) => keys
+            .filter((k) => k.startsWith('adaptajireh-'))
+            .forEach((k) => caches.delete(k)))
+          .catch(() => {});
+      } else {
+        navigator.serviceWorker.register('/sw.js').catch(() => { /* no crítico */ });
+      }
     }
 
     setSinConexion(!navigator.onLine);

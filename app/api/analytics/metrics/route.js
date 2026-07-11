@@ -18,7 +18,7 @@ async function handler(request, context, user) {
         id_respuesta, timestamp_resp, tiempo_respuesta_ms,
         SST:sst, IRE_dias:ire_dias, D_post:d_post, S_post:s_post,
         TR:tr, PA:pa, AR:ar, CE:ce, DD:dd, CR:cr, rating_frs,
-        estudiante:usuario!id_estudiante(nombre_usuario, grado),
+        estudiante:usuario!id_estudiante(id_usuario, nombre_usuario, grado),
         item:item!id_item(
           nivel_bloom,
           unidad:unidad_curricular!id_unidad(

@@ -11,7 +11,7 @@
  *    diferido contaminaría las variables de investigación (AR, racha, IRE).
  */
 
-const VERSION        = 'v1';
+const VERSION        = 'v2';
 const CACHE_ESTATICO = `adaptajireh-estatico-${VERSION}`;
 const CACHE_PAGINAS  = `adaptajireh-paginas-${VERSION}`;
 const CACHE_API      = `adaptajireh-api-${VERSION}`;

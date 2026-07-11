@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "seed:hash": "node supabase/seeds/generate-hash.js",
-    "backfill:traducciones": "node supabase/scripts/backfill-traducciones.mjs"
+    "backfill:traducciones": "node supabase/scripts/backfill-traducciones.mjs",
+    "seed:sesiones": "node supabase/scripts/seed-sesiones.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
