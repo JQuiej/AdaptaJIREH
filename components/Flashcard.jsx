@@ -22,6 +22,25 @@ export function bloquearPegaNativo(e) {
   if (INPUTS_PEGA.has(e.inputType)) e.preventDefault();
 }
 
+// Algunos teclados móviles (SwiftKey/Gboard) insertan el texto pegado desde su
+// sugerencia del portapapeles como si fuera tecleado (inputType 'insertText'),
+// por lo que no se puede distinguir con eventos de pegado. Como último filtro,
+// comparamos el valor anterior con el nuevo: si de golpe se insertó un bloque
+// largo con varias palabras o saltos de línea, lo tratamos como pegado y lo
+// descartamos. El tecleo normal (1 carácter) y el autocompletado de una sola
+// palabra no lo activan.
+const UMBRAL_PEGADO = 15;
+export function insercionSospechosa(prev, next) {
+  if (next.length <= prev.length) return false; // borrado o reemplazo más corto
+  const min = Math.min(prev.length, next.length);
+  let p = 0;
+  while (p < min && prev[p] === next[p]) p++;
+  let s = 0;
+  while (s < min - p && prev[prev.length - 1 - s] === next[next.length - 1 - s]) s++;
+  const insertado = next.slice(p, next.length - s).trim();
+  return /\n/.test(insertado) || (/\s/.test(insertado) && insertado.length > UMBRAL_PEGADO);
+}
+
 function parsearPregunta(pregunta) {
   const lineas = String(pregunta ?? '').split('\n');
   const enunciado = [];
@@ -63,6 +82,13 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   // Evita que el alumno pegue, copie, corte o arrastre texto en la respuesta,
   // para que redacte con sus propias palabras y no copie de otra fuente.
   const bloquearCopiaPega = (e) => e.preventDefault();
+
+  // Actualiza la respuesta, descartando inserciones que parezcan un pegado
+  // (bloque largo de varias palabras metido de golpe).
+  const handleCambio = (next) => {
+    if (insercionSospechosa(respuesta, next)) return;
+    setRespuesta(next);
+  };
 
   // En móvil, pegar desde la sugerencia del teclado no dispara el evento
   // 'paste' sino un 'beforeinput' con inputType 'insertFromPaste'. Bloqueamos
@@ -148,7 +174,7 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
               className="campo campo-respuesta"
               placeholder="Escribe tu respuesta aquí..."
               value={respuesta}
-              onChange={setRespuesta}
+              onChange={handleCambio}
               disabled={cargando}
               bloquearPega
               onPaste={bloquearCopiaPega}
@@ -162,7 +188,7 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
               className="campo campo-respuesta"
               placeholder="Escribe tu respuesta aquí..."
               value={respuesta}
-              onChange={(e) => setRespuesta(e.target.value)}
+              onChange={(e) => handleCambio(e.target.value)}
               disabled={cargando}
               onPaste={bloquearCopiaPega}
               onCopy={bloquearCopiaPega}
