@@ -25,7 +25,7 @@ async function handler(request, context, user) {
       .select(`
         id_item, pregunta, respuesta_ref, pista, pista_es,
         nivel_bloom, embedding_ref,
-        unidad:unidad_curricular!id_unidad(id_unidad)
+        unidad:unidad_curricular!id_unidad(id_unidad, materia:materia!id_materia(nombre))
       `)
       .eq('id_item', itemId)
       .single();
@@ -91,6 +91,7 @@ async function handler(request, context, user) {
           referenceAnswer: item.respuesta_ref,
           studentResponse,
           bloomLevel:      item.nivel_bloom,
+          esIngles:        /ingl[eé]s/i.test(item.unidad?.materia?.nombre ?? ''),
         });
         gradeScore   = g.score;
         feedbackType = classifyFeedback(gradeScore);
@@ -136,6 +137,7 @@ async function handler(request, context, user) {
       responseTimeMs,
       newFsrs,
       sstScore,
+      gradeScore,
       bloomLevel:         item.nivel_bloom,
       feedbackType,
       rating,
