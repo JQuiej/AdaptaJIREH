@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import BloomBadge from './BloomBadge';
 import SemanticBar from './SemanticBar';
 import MathField from './MathField';
@@ -9,6 +9,18 @@ import MathField from './MathField';
 // "1) ...". Devuelve el enunciado limpio y un arreglo de { letra, texto } para
 // poder mostrarlas como filas legibles en vez de un bloque de texto corrido.
 const RE_INCISO = /^\s*([a-hA-H1-8])\s*[).\-–]\s+(.*)$/;
+
+// Bloquea la inserción de texto proveniente de pegar/arrastrar a nivel de
+// 'beforeinput' (cubre la sugerencia de pegar del teclado móvil, que no
+// dispara el evento 'paste'). Se exporta para reutilizarlo en MathField.
+const INPUTS_PEGA = new Set([
+  'insertFromPaste',
+  'insertFromPasteAsQuotation',
+  'insertFromDrop',
+]);
+export function bloquearPegaNativo(e) {
+  if (INPUTS_PEGA.has(e.inputType)) e.preventDefault();
+}
 
 function parsearPregunta(pregunta) {
   const lineas = String(pregunta ?? '').split('\n');
@@ -51,6 +63,18 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   // Evita que el alumno pegue, copie, corte o arrastre texto en la respuesta,
   // para que redacte con sus propias palabras y no copie de otra fuente.
   const bloquearCopiaPega = (e) => e.preventDefault();
+
+  // En móvil, pegar desde la sugerencia del teclado no dispara el evento
+  // 'paste' sino un 'beforeinput' con inputType 'insertFromPaste'. Bloqueamos
+  // ese caso a nivel nativo para cerrar esa vía. Ref para el textarea normal;
+  // el de Matemáticas (MathField) hace lo mismo internamente con bloquearPega.
+  const areaRef = useRef(null);
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    el.addEventListener('beforeinput', bloquearPegaNativo);
+    return () => el.removeEventListener('beforeinput', bloquearPegaNativo);
+  }, [resultado, esMatematicas]);
 
   async function handleEnviar(e) {
     e.preventDefault();
@@ -126,6 +150,7 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
               value={respuesta}
               onChange={setRespuesta}
               disabled={cargando}
+              bloquearPega
               onPaste={bloquearCopiaPega}
               onCopy={bloquearCopiaPega}
               onCut={bloquearCopiaPega}
@@ -133,6 +158,7 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
             />
           ) : (
             <textarea
+              ref={areaRef}
               className="campo campo-respuesta"
               placeholder="Escribe tu respuesta aquí..."
               value={respuesta}

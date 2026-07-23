@@ -1004,6 +1004,18 @@ input, select, textarea { font-family: inherit; }
   width: 100%;
   white-space: pre-line; /* respeta los saltos de línea de preguntas de opción */
 }
+/* Impide seleccionar/copiar el texto de la pregunta (enunciado, opciones y
+   traducción) para que el alumno no lo copie a un buscador o a otra fuente.
+   -webkit-touch-callout evita el menú de copiar al mantener pulsado en iOS. */
+.flashcard-pregunta,
+.flashcard-opciones,
+.flashcard-traduccion,
+.bloque-referencia-desplegable {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
 /* Aviso de modo sin conexión (parte inferior, sobre todo lo demás). */
 .banner-offline {
   position: fixed;

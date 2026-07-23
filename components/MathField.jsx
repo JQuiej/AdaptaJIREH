@@ -1,5 +1,14 @@
 'use client';
-import { useRef, useState, useLayoutEffect } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect } from 'react';
+
+// Inserciones que provienen de pegar/arrastrar; se bloquean cuando
+// bloquearPega está activo (cubre la sugerencia de pegar del teclado móvil,
+// que no dispara el evento 'paste' de React).
+const INPUTS_PEGA = new Set([
+  'insertFromPaste',
+  'insertFromPasteAsQuotation',
+  'insertFromDrop',
+]);
 
 /**
  * MathField — área de texto con una paleta de símbolos matemáticos.
@@ -90,11 +99,22 @@ export default function MathField({
   placeholder,
   disabled = false,
   className = 'campo',
+  bloquearPega = false,
   ...rest
 }) {
   const ref = useRef(null);
   const cursorRef = useRef(null); // posición donde dejar el cursor tras insertar
   const [abierta, setAbierta] = useState(false); // paleta colapsada por defecto
+
+  // Bloqueo de pegar/arrastrar a nivel nativo ('beforeinput'), para el caso
+  // del teclado móvil que no dispara el evento 'paste'.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !bloquearPega) return;
+    const handler = (e) => { if (INPUTS_PEGA.has(e.inputType)) e.preventDefault(); };
+    el.addEventListener('beforeinput', handler);
+    return () => el.removeEventListener('beforeinput', handler);
+  }, [bloquearPega]);
 
   // Tras insertar un símbolo, restaurar el foco y la posición del cursor.
   useLayoutEffect(() => {
