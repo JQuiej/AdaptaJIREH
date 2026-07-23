@@ -90,6 +90,7 @@ export default function MathField({
   placeholder,
   disabled = false,
   className = 'campo',
+  ...rest
 }) {
   const ref = useRef(null);
   const cursorRef = useRef(null); // posición donde dejar el cursor tras insertar
@@ -158,6 +159,7 @@ export default function MathField({
         value={value}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.value)}
+        {...rest}
       />
     </div>
   );

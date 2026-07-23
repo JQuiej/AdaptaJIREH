@@ -48,6 +48,10 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
   // Separar enunciado e incisos para mostrarlos de forma más legible.
   const { enunciado, opciones } = parsearPregunta(item.pregunta);
 
+  // Evita que el alumno pegue, copie, corte o arrastre texto en la respuesta,
+  // para que redacte con sus propias palabras y no copie de otra fuente.
+  const bloquearCopiaPega = (e) => e.preventDefault();
+
   async function handleEnviar(e) {
     e.preventDefault();
     if (!respuesta.trim()) return;
@@ -122,6 +126,10 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
               value={respuesta}
               onChange={setRespuesta}
               disabled={cargando}
+              onPaste={bloquearCopiaPega}
+              onCopy={bloquearCopiaPega}
+              onCut={bloquearCopiaPega}
+              onDrop={bloquearCopiaPega}
             />
           ) : (
             <textarea
@@ -130,6 +138,10 @@ export default function Flashcard({ item, onSubmit, onSiguiente, cargando }) {
               value={respuesta}
               onChange={(e) => setRespuesta(e.target.value)}
               disabled={cargando}
+              onPaste={bloquearCopiaPega}
+              onCopy={bloquearCopiaPega}
+              onCut={bloquearCopiaPega}
+              onDrop={bloquearCopiaPega}
             />
           )}
           {item.pista && (
