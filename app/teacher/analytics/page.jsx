@@ -56,6 +56,7 @@ function ContenidoAnalytics() {
   const [sesiones,  setSesiones]  = useState([]);
   const [alertas,   setAlertas]   = useState([]);
   const [cargando,  setCargando]  = useState(false);
+  const [alertasAbierto, setAlertasAbierto] = useState(false);
 
   useEffect(() => {
     api.get('/material/subjects').then((r) => setMaterias(r.data)).catch(() => {});
@@ -220,22 +221,38 @@ function ContenidoAnalytics() {
           <KPI etiqueta="Similitud SST promedio" valor={avgSST !== '—' ? `${avgSST}%` : '—'} sub={`${estUnicos} activos · ${sesiones.length} sesiones`} />
         </div>
 
-        {/* Alertas tempranas */}
+        {/* Alertas tempranas (colapsadas por defecto) */}
         {alertas.length > 0 && (
           <section>
-            <p className="titulo-seccion" style={{ color: 'var(--peligro)' }}>
+            <button
+              type="button"
+              onClick={() => setAlertasAbierto((v) => !v)}
+              className="titulo-seccion"
+              style={{
+                color: 'var(--peligro)', background: 'none', border: 'none',
+                padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                gap: '0.4rem', font: 'inherit',
+              }}
+              aria-expanded={alertasAbierto}
+            >
+              <span style={{ display: 'inline-block', transform: alertasAbierto ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▸</span>
               Estudiantes en riesgo ({alertas.length})
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {alertas.map((a, i) => (
-                <div key={i} className="tarjeta-alerta">
-                  <p className="alerta-nombre">{a.nombre_usuario}</p>
-                  <p className="alerta-detalle">
-                    {a.nombre_unidad} — precisión {Math.round((a.precision_prom ?? 0) * 100)}% en {a.items_evaluados} ítems (últimos 14 días)
-                  </p>
-                </div>
-              ))}
-            </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.8 }}>
+                {alertasAbierto ? '— Ver menos' : '— Ver más'}
+              </span>
+            </button>
+            {alertasAbierto && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {alertas.map((a, i) => (
+                  <div key={i} className="tarjeta-alerta">
+                    <p className="alerta-nombre">{a.nombre_usuario}</p>
+                    <p className="alerta-detalle">
+                      {a.nombre_unidad} — precisión {Math.round((a.precision_prom ?? 0) * 100)}% en {a.items_evaluados} ítems (últimos 14 días)
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

@@ -3,11 +3,12 @@
 -- Ejecutar en: Supabase Dashboard → SQL Editor
 --
 -- Idea: mide la CONSTANCIA de uso. Toma el rango de días desde la PRIMERA
--- respuesta hasta la ÚLTIMA (ambos inclusive) y calcula qué proporción de
--- esos días el estudiante realmente respondió al menos un ítem. Si dejó días
--- de por medio, esos días bajan el porcentaje.
+-- respuesta hasta HOY (ambos inclusive) y calcula qué proporción de esos días
+-- el estudiante realmente respondió al menos un ítem. Los días que dejó de
+-- entrar —incluidos los recientes hasta hoy— cuentan como inactivos y bajan el
+-- porcentaje.
 --
---   dias_transcurridos = (última fecha − primera fecha) + 1   (calendario completo)
+--   dias_transcurridos = (hoy − primera fecha) + 1            (calendario completo hasta hoy)
 --   dias_activos       = días distintos con al menos una respuesta
 --   dias_inactivos     = dias_transcurridos − dias_activos
 --   porcentaje_uso     = dias_activos / dias_transcurridos * 100
@@ -30,7 +31,8 @@ agg AS (
     MIN(dia)                    AS primera_fecha,
     MAX(dia)                    AS ultima_fecha,
     COUNT(DISTINCT dia)         AS dias_activos,
-    (MAX(dia) - MIN(dia)) + 1   AS dias_transcurridos,
+    -- Rango desde el primer día de uso HASTA HOY (hora de Guatemala), inclusive.
+    ((now() AT TIME ZONE 'America/Guatemala')::date - MIN(dia)) + 1 AS dias_transcurridos,
     COUNT(*)                    AS total_respuestas
   FROM dias
   GROUP BY id_estudiante

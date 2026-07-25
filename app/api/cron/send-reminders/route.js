@@ -70,3 +70,8 @@ async function handler(request) {
 }
 
 export const GET = handler;
+
+// Esta ruta lee cabeceras y query string (auth de cron + turno), por lo que es
+// dinámica por naturaleza. Declararlo evita que Next intente pre-renderizarla en
+// el build y silencia el aviso "Dynamic server usage".
+export const dynamic = 'force-dynamic';
