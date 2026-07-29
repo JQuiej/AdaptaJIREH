@@ -52,6 +52,7 @@ export default function PanelDocente() {
           <button onClick={() => router.push('/teacher/theory')}    className="btn-secundario">Material de estudio</button>
           <button onClick={() => router.push('/teacher/items')}     className="btn-secundario">Mis ítems</button>
           <button onClick={() => router.push('/teacher/analytics')} className="btn-secundario">Dashboard</button>
+          <button onClick={() => router.push('/teacher/uso')}       className="btn-secundario">Uso</button>
           <button onClick={() => router.push('/teacher/admin')}     className="btn-secundario">Administrar</button>
           <button onClick={() => router.push('/cambiar-clave')}     className="btn-secundario">Cambiar contraseña</button>
           <button onClick={cerrarSesion}                            className="btn-secundario">Cerrar sesión</button>
@@ -172,6 +173,14 @@ export default function PanelDocente() {
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
                 Monitorea PA, AR, TR, SST y exporta datos CSV para SPSS
+              </p>
+            </button>
+            <button className="tarjeta-accion" onClick={() => router.push('/teacher/uso')}>
+              <p style={{ fontWeight: 500, color: 'var(--gris-800)', fontSize: '0.875rem' }}>
+                Uso de la aplicación
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--gris-400)', marginTop: '0.25rem' }}>
+                Mira qué porcentaje de días ha usado la app cada estudiante
               </p>
             </button>
           </div>

@@ -11,13 +11,26 @@ async function handler(request) {
     const days      = period === '7d' ? 7 : period === '30d' ? 30 : 60;
     const dateFrom  = new Date(Date.now() - days * 86400000).toISOString();
 
-    const { data, error } = await supabase.rpc('export_research_csv', {
-      p_id_materia:  subjectId ?? null,
-      p_fecha_desde: dateFrom,
-    });
+    // PostgREST corta los resultados en 1000 filas por petición (también en RPC),
+    // así que se pagina con .range() hasta traer TODAS las filas. La función
+    // ordena por (codigo_anonimo, timestamp_resp), por lo que la paginación es
+    // estable (no duplica ni salta filas).
+    const PAGE_SIZE = 1000;
+    let data = [];
+    for (let page = 0; ; page++) {
+      const { data: chunk, error } = await supabase
+        .rpc('export_research_csv', {
+          p_id_materia:  subjectId ?? null,
+          p_fecha_desde: dateFrom,
+        })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (error) throw error;
+      if (!chunk?.length) break;
+      data = data.concat(chunk);
+      if (chunk.length < PAGE_SIZE) break; // última página
+    }
 
-    if (error) throw error;
-    if (!data?.length) {
+    if (!data.length) {
       return NextResponse.json({ error: 'Sin datos para exportar', code: 'NO_DATA' }, { status: 404 });
     }
 

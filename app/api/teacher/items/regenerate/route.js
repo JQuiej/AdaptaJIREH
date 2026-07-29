@@ -64,22 +64,40 @@ async function handler(request, context, user) {
       .select('pregunta')
       .eq('id_unidad', item.id_unidad)
       .neq('id_item', itemId);
-    const excludeQuestions = (otras ?? []).map((o) => o.pregunta).filter(Boolean);
+    const otrasPreguntas = (otras ?? []).map((o) => o.pregunta).filter(Boolean);
 
-    const nuevo = await regenerateItem({
-      subjectName,
-      unitName,
-      bloomLevel:      item.nivel_bloom,
-      materialContext,
-      currentQuestion: item.pregunta,
-      ajuste,
-      instruccion,
-      esIngles:        esMateriaIngles(subjectName),
-      esMatematicas:   esMateriaMatematicas(subjectName),
-      excludeQuestions,
-    });
+    // Conjunto normalizado de preguntas que YA existen (incluida la actual), para
+    // detectar cuando la IA devuelve una pregunta prácticamente igual a alguna.
+    const norm = (s) => (s ?? '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+    const existentes = new Set([item.pregunta, ...otrasPreguntas].map(norm).filter(Boolean));
 
-    if (!nuevo.question?.trim() || !nuevo.reference_answer?.trim()) {
+    // Genera y, si sale duplicada, reintenta añadiéndola a la lista a evitar
+    // (hasta 3 intentos). La pregunta actual va SIEMPRE en la exclusión.
+    let nuevo = null;
+    let exclude = [item.pregunta, ...otrasPreguntas];
+    for (let intento = 0; intento < 3; intento++) {
+      const cand = await regenerateItem({
+        subjectName,
+        unitName,
+        bloomLevel:      item.nivel_bloom,
+        materialContext,
+        currentQuestion: item.pregunta,
+        ajuste,
+        instruccion,
+        esIngles:        esMateriaIngles(subjectName),
+        esMatematicas:   esMateriaMatematicas(subjectName),
+        excludeQuestions: exclude,
+      });
+      nuevo = cand; // conserva el último por si todos salieran duplicados
+      const q = cand.question?.trim();
+      if (q && !existentes.has(norm(q))) break;           // única → listo
+      if (q) exclude = [...exclude, q];                    // duplicada → evítala en el reintento
+    }
+
+    if (!nuevo?.question?.trim() || !nuevo.reference_answer?.trim()) {
       return NextResponse.json(
         { error: 'La IA no devolvió una pregunta válida. Intenta de nuevo.', code: 'LLM_EMPTY' },
         { status: 502 }

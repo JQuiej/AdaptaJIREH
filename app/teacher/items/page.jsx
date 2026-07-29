@@ -8,6 +8,25 @@ import api from '@/services/api';
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`);
 const nivelLogro = (v) => (v == null ? 'nulo' : v >= 0.7 ? 'alto' : v >= 0.4 ? 'medio' : 'bajo');
 
+// Nota que el SISTEMA le dio a una respuesta, tal como la vio el estudiante.
+// Si hay grade_score (respuestas desde la migración 022) se muestra el % exacto;
+// si no, se reconstruye la BANDA desde rating_frs (mismos cortes de pantalla).
+function notaDe(r) {
+  if (r.gradeScore != null) {
+    const clave = r.gradeScore >= 0.71 ? 'alto' : r.gradeScore >= 0.41 ? 'medio' : 'bajo';
+    return { texto: `${Math.round(r.gradeScore * 100)}%`, clave };
+  }
+  if (r.ratingFrs === 3) return { texto: 'Alto',  clave: 'alto'  };
+  if (r.ratingFrs === 2) return { texto: 'Medio', clave: 'medio' };
+  if (r.ratingFrs == null) return { texto: '—', clave: 'nulo' };
+  return { texto: 'Bajo', clave: 'bajo' };
+}
+
+const fechaHora = (iso) =>
+  new Date(iso).toLocaleString('es-GT', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+
 function KPI({ etiqueta, valor, sub }) {
   return (
     <div className="bloque-kpi">
@@ -20,7 +39,7 @@ function KPI({ etiqueta, valor, sub }) {
 
 // Tarjeta tipo flashcard: se voltea al tocarla (frente = pregunta, reverso =
 // respuesta de referencia + pista + estadísticas detalladas).
-function TarjetaItem({ item, onRegenerar }) {
+function TarjetaItem({ item, onRegenerar, onVerRespuestas }) {
   const [volteada, setVolteada] = useState(false);
   const logro = nivelLogro(item.precision);
   const sinDatos = item.totalRespuestas === 0;
@@ -53,6 +72,15 @@ function TarjetaItem({ item, onRegenerar }) {
             )}
           </div>
           <div className="flip-acciones">
+            <button
+              type="button"
+              className="btn-regenerar"
+              onClick={(e) => { e.stopPropagation(); onVerRespuestas(item); }}
+              disabled={sinDatos}
+              title={sinDatos ? 'Este ítem aún no tiene respuestas' : 'Ver las respuestas de los estudiantes'}
+            >
+              💬 Respuestas{item.totalRespuestas ? ` (${item.totalRespuestas})` : ''}
+            </button>
             <button
               type="button"
               className="btn-regenerar"
@@ -250,6 +278,141 @@ function ModalCrearItems({ materias, materiaInicial, onCerrar, onCreado }) {
   );
 }
 
+// Modal «Respuestas»: lista los estudiantes que respondieron el ítem y, al
+// seleccionar uno, despliega TODAS sus respuestas a esa pregunta con la nota
+// que el sistema le dio a cada una.
+function ModalRespuestas({ item, onCerrar }) {
+  const [cargando,   setCargando]   = useState(true);
+  const [error,      setError]      = useState('');
+  const [respuestas, setRespuestas] = useState([]);
+  const [selId,      setSelId]      = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    api.get(`/teacher/items/responses?itemId=${item.id}`)
+      .then((r) => { if (vivo) setRespuestas(r.data); })
+      .catch(() => { if (vivo) setError('No se pudieron cargar las respuestas. Intenta de nuevo.'); })
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
+  }, [item.id]);
+
+  // Agrupar las respuestas por estudiante (ordenadas por código anónimo).
+  const estudiantes = useMemo(() => {
+    const mapa = new Map();
+    for (const r of respuestas) {
+      if (!mapa.has(r.estudianteId)) {
+        mapa.set(r.estudianteId, { id: r.estudianteId, codigo: r.codigoAnonimo, grado: r.grado, respuestas: [] });
+      }
+      mapa.get(r.estudianteId).respuestas.push(r);
+    }
+    return [...mapa.values()].sort((a, b) => (a.codigo ?? '').localeCompare(b.codigo ?? ''));
+  }, [respuestas]);
+
+  // Autoselecciona el primer estudiante al cargar.
+  useEffect(() => {
+    if (selId == null && estudiantes.length) setSelId(estudiantes[0].id);
+  }, [estudiantes, selId]);
+
+  const sel = estudiantes.find((e) => e.id === selId) ?? null;
+
+  return (
+    <div className="regen-overlay" onClick={onCerrar}>
+      <div
+        className="regen-modal"
+        style={{ maxWidth: '820px', width: '95%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="regen-titulo">Respuestas de los estudiantes</h3>
+        <p className="regen-pregunta-actual">{item.pregunta}</p>
+
+        {cargando ? (
+          <div className="tarjeta-vacia">Cargando respuestas...</div>
+        ) : error ? (
+          <p className="alerta-error">{error}</p>
+        ) : estudiantes.length === 0 ? (
+          <div className="tarjeta-vacia">Este ítem aún no tiene respuestas.</div>
+        ) : (
+          <div className="resp-layout">
+            {/* Lista de estudiantes */}
+            <div className="resp-lista">
+              {estudiantes.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={`resp-estudiante ${e.id === selId ? 'activo' : ''}`}
+                  onClick={() => setSelId(e.id)}
+                >
+                  <span className="resp-estudiante-codigo">{e.codigo}</span>
+                  <span className="resp-estudiante-meta">
+                    {e.respuestas.length} resp{e.respuestas.length !== 1 ? '.' : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Respuestas del estudiante seleccionado */}
+            <div className="resp-detalle">
+              {sel && (
+                <>
+                  <p className="resp-detalle-titulo">
+                    {sel.codigo}{sel.grado ? ` · ${sel.grado}` : ''} — {sel.respuestas.length} respuesta{sel.respuestas.length !== 1 ? 's' : ''}
+                  </p>
+                  {sel.respuestas.map((r) => {
+                    const nota = notaDe(r);
+                    return (
+                      <div key={r.id} className="resp-item">
+                        <div className="resp-item-cabecera">
+                          <span className={`stat-pill ${nota.clave}`}>{nota.texto}</span>
+                          <span className="resp-item-fecha">{fechaHora(r.fecha)}</span>
+                        </div>
+                        <p className="resp-item-texto">{r.texto || <em>(respuesta vacía)</em>}</p>
+                        <div className="resp-item-extra">
+                          {r.usoPista && <span>Usó pista</span>}
+                          {r.tiempoMs != null && <span>{Math.round(r.tiempoMs / 1000)}s</span>}
+                          {r.sst != null && <span>SST {Math.round(r.sst * 100)}%</span>}
+                        </div>
+                        {r.retro ? (
+                          <details className="resp-retro">
+                            <summary>Ver retroalimentación</summary>
+                            {r.retro.diagnostico && (
+                              <div className="resp-retro-parte">
+                                <span className="resp-retro-titulo">Qué pasó</span>
+                                <p>{r.retro.diagnostico}</p>
+                              </div>
+                            )}
+                            {r.retro.explicacion && (
+                              <div className="resp-retro-parte">
+                                <span className="resp-retro-titulo">Punto de mejora</span>
+                                <p>{r.retro.explicacion}</p>
+                              </div>
+                            )}
+                            {r.retro.ejemplo && (
+                              <div className="resp-retro-parte">
+                                <span className="resp-retro-titulo">Ejemplo</span>
+                                <p>{r.retro.ejemplo}</p>
+                              </div>
+                            )}
+                          </details>
+                        ) : (
+                          <p className="resp-sin-retro">Sin retroalimentación</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="regen-botones">
+          <button type="button" className="btn-secundario" onClick={onCerrar}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContenidoItems() {
   useAuthGuard('docente');
   const router = useRouter();
@@ -263,6 +426,7 @@ function ContenidoItems() {
   const [temaFilt,  setTemaFilt]  = useState(''); // '' | unidadId
   const [cargando,  setCargando]  = useState(true);
   const [regenItem, setRegenItem] = useState(null); // ítem en modal de regeneración
+  const [verResp,   setVerResp]   = useState(null); // ítem en modal de respuestas
   const [crearOpen, setCrearOpen] = useState(false); // modal de crear ítems nuevos
   const [aviso,     setAviso]     = useState('');   // confirmación tras regenerar
 
@@ -421,7 +585,7 @@ function ContenidoItems() {
             </p>
             <div className="grid-flashcards">
               {filtrados.map((it) => (
-                <TarjetaItem key={it.id} item={it} onRegenerar={setRegenItem} />
+                <TarjetaItem key={it.id} item={it} onRegenerar={setRegenItem} onVerRespuestas={setVerResp} />
               ))}
             </div>
           </>
@@ -436,6 +600,10 @@ function ContenidoItems() {
           onCerrar={() => setRegenItem(null)}
           onRegenerado={alRegenerar}
         />
+      )}
+
+      {verResp && (
+        <ModalRespuestas item={verResp} onCerrar={() => setVerResp(null)} />
       )}
 
       {crearOpen && (
