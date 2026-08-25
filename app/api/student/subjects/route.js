@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
 import { calculateRetrieval } from '@/lib/fsrs5';
-import { itemsAcertados, filtrarPorBloom, componerSesion, cargaCognitivaRecomendada } from '@/lib/progression';
+import { historialItems, filtrarPorBloom, componerSesion, cargaCognitivaRecomendada } from '@/lib/progression';
 
 // R(t) actual de un ítem: decae con los días transcurridos desde el último repaso.
 function retencionActual(fila) {
@@ -50,8 +50,8 @@ async function handler(request, context, user) {
         // El conteo del panel refleja la sesión real (misma compuerta de Bloom).
         // Los repasos vencidos NO se topan; el número recomendado (carga cognitiva
         // por alumno) solo orienta cuántos repasar.
-        const acertados  = await itemsAcertados(user.id, filas.map((r) => r.item.id_item));
-        const permitidos = filtrarPorBloom(filas, acertados);
+        const { intentados, acertados } = await historialItems(user.id, filas.map((r) => r.item.id_item));
+        const permitidos = filtrarPorBloom(filas, acertados, intentados);
         const sesion     = componerSesion(permitidos, today);
         const pending    = sesion.length;
         const recommended = Math.min(cargaCognitivaRecomendada(filas), pending);

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/validate';
-import { itemsAcertados, filtrarPorBloom, componerSesion, cargaCognitivaRecomendada } from '@/lib/progression';
+import { historialItems, filtrarPorBloom, componerSesion, cargaCognitivaRecomendada } from '@/lib/progression';
 
 async function handler(request, context, user) {
   try {
@@ -40,8 +40,8 @@ async function handler(request, context, user) {
     if (filas.length === 0) return NextResponse.json([]);
 
     // ── Compuerta de Bloom + composición de la sesión ────────
-    const acertados  = await itemsAcertados(user.id, filas.map((r) => r.item.id_item));
-    const permitidos = filtrarPorBloom(filas, acertados);
+    const { intentados, acertados } = await historialItems(user.id, filas.map((r) => r.item.id_item));
+    const permitidos = filtrarPorBloom(filas, acertados, intentados);
     const sesion     = componerSesion(permitidos, today);
 
     // Carga cognitiva recomendada por alumno (no recorta la sesión; solo orienta).

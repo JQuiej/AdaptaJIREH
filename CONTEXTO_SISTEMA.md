@@ -148,11 +148,16 @@ Exporta `NIVELES_BLOOM`, `NIVELES_BLOOM_VALORES` `[1,2,3,4]`, `BLOOM_LABELS` (gu
 ## 9. Progresión y composición de sesión (`lib/progression.js`)
 
 **Compuerta de maestría por nivel Bloom, por unidad:**
-- Un nivel se **domina** (y desbloquea el siguiente) cuando el alumno acierta ≥ **`UMBRAL_DOMINIO = 0.9`** (90%) de los ítems activos de ese nivel. Acierto = `rating_frs ≥ RATING_ACIERTO (3)`.
-- `itemsAcertados(studentId, ids)` — usa histórico (progresión monótona: dominar no se revierte).
-- `nivelDesbloqueado(items, acertados)` — primer nivel no dominado.
-- `filtrarPorBloom(filas, acertados)` — deja solo ítems de niveles desbloqueados.
-- `componerSesion(permitidos, today)` — **TODOS los repasos vencidos** (sin tope, ordenados por menor R = más a punto de olvidar) + hasta **`MAX_NUEVOS = 6`** ítems nuevos (del Bloom más bajo hacia arriba).
+- Un nivel se **domina** (y desbloquea el siguiente) cuando el alumno acierta ≥ **`UMBRAL_DOMINIO = 0.7`** (70%) de los ítems de ese nivel **que ha intentado**, habiendo intentado al menos **`MIN_INTENTOS_NIVEL = 3`**. Acierto = `rating_frs ≥ RATING_ACIERTO (3)`.
+  - *El ratio se mide sobre los intentados, no sobre todos:* con el criterio anterior (0.9 sobre todos los ítems del nivel) un ítem nunca visto contaba como fallo, y en una unidad de 5 ítems la compuerta exigía acertar los 5. Resultado medido en producción: 470 de 492 pares alumno×unidad atascados en Bloom 1–2, 36 respuestas de Bloom 3 y **0 de Bloom 4** en 5 191 respuestas.
+- **Atajo de transferencia:** con al menos **`ATAJO_ACIERTOS_BLOOM2 = 2`** aciertos en ítems de Bloom 2 de la unidad se abren de una vez los niveles **3 y 4**, sin exigir completar el nivel 2. Es un ajuste deliberado de la progresión para poder medir la variable **TR**: con la compuerta secuencial, de 5 191 respuestas ninguna llegó a Bloom 4. Abre 45 de los 492 pares alumno×unidad (10 alumnos).
+- `historialItems(studentId, ids)` — devuelve `{intentados, acertados}` desde el histórico (progresión monótona: dominar no se revierte).
+- `nivelDesbloqueado(items, acertados, intentados)` — primer nivel no dominado.
+- `filtrarPorBloom(filas, acertados, intentados)` — deja solo ítems de niveles desbloqueados.
+- `componerSesion(permitidos, today)` — **TODOS los repasos vencidos** (sin tope, ordenados por menor R = más a punto de olvidar) + hasta **`MAX_NUEVOS = 6`** ítems nuevos, pero **intercalados, no anexados al final**:
+  - Los ítems de **transferencia** (`nivel_bloom ≥ BLOOM_TRANSFERENCIA = 3`, los que miden la variable TR) van **al principio de la sesión**: primero sus repasos vencidos, luego hasta **`CUPO_TRANSFERENCIA = 3`** ítems nuevos, alternando Bloom 4 y 3 (`alternarPorNivel`) para acumular evidencia de transferencia lejana y cercana por igual.
+  - Los ítems nuevos de Bloom bajo ocupan uno de cada **`PASO_NUEVOS = 4`** lugares de la cola base.
+  - *Por qué:* la cola empezaba por todos los repasos vencidos (mediana ≈26 por alumno) mientras la carga recomendada es de 5 a 15 ítems, así que el material nuevo —y con él todo Bloom 3/4— quedaba fuera del alcance de la sesión. Efecto medido sobre la carga alcanzable: ítems de Bloom 3/4 servidos 2 → 36 y en las **primeras posiciones**; alumnos que los ven 2/41 → 10/41; alumnos que ven material nuevo 12/41 → 41/41.
 - `cargaCognitivaRecomendada(filas)` — recomendación por alumno (Teoría de carga cognitiva de Sweller): combina retención R (60%) y facilidad (40%), escala entre `CARGA_MIN=5` y `CARGA_MAX=15`. Sin historial: `CARGA_BASE_SIN_HISTORIAL=8`. **Solo orienta, no recorta la sesión.**
 
 ---
@@ -247,7 +252,7 @@ Exporta `NIVELES_BLOOM`, `NIVELES_BLOOM_VALORES` `[1,2,3,4]`, `BLOOM_LABELS` (gu
 - **`user.role`** (en el JWT/`withAuth`) vs **`user.id`** (id del usuario en los handlers).
 - **Variables actuales = 10**. Eliminadas: TO, R, ELC. Renombre: **CR → LR** (jul 2026). El `SETUP.md` todavía lista la nomenclatura vieja (TO/R/ELC/CR) — usar la matriz de la sección 4 / mig. 020 como fuente de verdad.
 - **SST vs juez LLM**: SST (embeddings) es variable de investigación; el **juez LLM** (`gradeAnswer`) es lo que realmente decide el rating y el feedback mostrado.
-- **Repasos sin tope, nuevos con tope** (`MAX_NUEVOS=6`): el alumno siempre puede saldar toda su deuda de olvido.
-- **Compuerta Bloom al 90%** por unidad, monótona (histórico de aciertos).
+- **Repasos sin tope, nuevos con tope** (`MAX_NUEVOS=6`): el alumno siempre puede saldar toda su deuda de olvido. Los nuevos y los de Bloom 3/4 van **intercalados** en la cola, no al final (ver sección 9).
+- **Compuerta Bloom al 70% de los ítems intentados** (mín. 3 intentos) por unidad, monótona (histórico de aciertos), **con atajo a Bloom 3–4 tras 2 aciertos en Bloom 2**. Cambió desde 0.9-sobre-todos en ago. 2026 porque bloqueaba la generación de datos de Bloom 3/4 (0 respuestas de Bloom 4 en 5 191).
 - Idiomas: seed con `docente01/jireh2024`, `est001–est005` (experimental, 1ro Básico A), `est006–est010` (control, 2do Básico B).
 - Grupos de investigación: **experimental** (usa el sistema completo) vs **control**.
